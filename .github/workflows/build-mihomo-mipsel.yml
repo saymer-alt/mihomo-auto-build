@@ -43,7 +43,7 @@ jobs:
         if: steps.check-release.outputs.already_built == 'false'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-mipsel-linux-gnu binutils
+          sudo apt-get install -y gcc-mipsel-linux-gnu
 
       - name: Clone and build Mihomo
         if: steps.check-release.outputs.already_built == 'false'
@@ -55,57 +55,22 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
           go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
           -o ../mihomo-linux-mipsel-softfloat
+          ls -la ../mihomo-linux-mipsel-softfloat
+          file ../mihomo-linux-mipsel-softfloat
 
-      - name: Create ipk package
+      - name: Create release assets
         if: steps.check-release.outputs.already_built == 'false'
         id: package
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
           VER_CLEAN="${VERSION#v}"
-          echo "=== Creating ipk for version $VER_CLEAN ==="
           
-          # Create control file with echo (no heredoc substitution issues)
-          mkdir -p ./ipk/CONTROL
-          echo "Package: mihomo" > ./ipk/CONTROL/control
-          echo "Version: ${VER_CLEAN}" >> ./ipk/CONTROL/control
-          echo "Architecture: mipsel-3.4" >> ./ipk/CONTROL/control
-          echo "Maintainer: saymer-alt" >> ./ipk/CONTROL/control
-          echo "Description: Mihomo proxy for Keenetic MT7621" >> ./ipk/CONTROL/control
+          # Rename binary to match official naming convention
+          cp ./mihomo-linux-mipsel-softfloat ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
           
-          # Verify control file content
-          echo "=== Control file ==="
-          cat ./ipk/CONTROL/control
-          
-          mkdir -p ./ipk/opt/sbin
-          cp ./mihomo-linux-mipsel-softfloat ./ipk/opt/sbin/mihomo
-          chmod +x ./ipk/opt/sbin/mihomo
-          
-          mkdir -p ./ipk-build
-          echo "=== Creating tar archives ==="
-          
-          # Use ustar format and root ownership to avoid PAX headers
-          tar czf ./ipk-build/control.tar.gz --format=ustar --owner=0 --group=0 -C ./ipk/CONTROL control
-          tar czf ./ipk-build/data.tar.gz --format=ustar --owner=0 --group=0 -C ./ipk opt
-          
-          echo "2.0" > ./ipk-build/debian-binary
-          
-          IPK_NAME="mihomo_${VER_CLEAN}_mipsel-3.4.ipk"
-          echo "=== Creating ipk ==="
-          
-          # Use 'ar rc' without 's' — opkg expects simple ar format
-          rm -f "./${IPK_NAME}"
-          ar rc "./${IPK_NAME}" ./ipk-build/debian-binary ./ipk-build/control.tar.gz ./ipk-build/data.tar.gz
-          
-          echo "=== Verifying ipk ==="
-          ar t "./${IPK_NAME}"
-          echo "=== control.tar.gz contents ==="
-          tar tzf ./ipk-build/control.tar.gz
-          echo "=== data.tar.gz contents ==="
-          tar tzf ./ipk-build/data.tar.gz
-          
-          ls -la "./${IPK_NAME}"
-          echo "ipk_name=$IPK_NAME" >> "$GITHUB_OUTPUT"
+          echo "bin_name=mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" >> "$GITHUB_OUTPUT"
+          ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
 
       - name: Create Release
         if: steps.check-release.outputs.already_built == 'false'
@@ -114,14 +79,22 @@ jobs:
           tag_name: ${{ steps.check-release.outputs.tag_name }}
           name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
           body: |
-            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 routers.
+            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 (MIPSel) routers.
             
             **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`
             
-            Install via opkg:
+            **Files:**
+            - `mihomo-linux-mipsel-softfloat-vX.X.X` — raw binary (replace directly)
+            
+            **Install (replace binary directly):**
             ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check-release.outputs.tag_name }}/${{ steps.package.outputs.ipk_name }}
-            opkg install ${{ steps.package.outputs.ipk_name }}
+            cd /tmp
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check-release.outputs.tag_name }}/${{ steps.package.outputs.bin_name }}
+            chmod +x ${{ steps.package.outputs.bin_name }}
+            ./${{ steps.package.outputs.bin_name }} -v   # test
+            cp /opt/sbin/mihomo /opt/sbin/mihomo.backup
+            mv ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
+            /opt/etc/init.d/S99mihomo restart
             ```
           files: |
-            ${{ steps.package.outputs.ipk_name }}
+            ${{ steps.package.outputs.bin_name }}
