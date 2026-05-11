@@ -2,9 +2,8 @@ name: Build Mihomo for MIPSel
 
 on:
   schedule:
-    # Run daily at 03:00 UTC
     - cron: '0 3 * * *'
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   check-and-build:
@@ -13,31 +12,27 @@ jobs:
       - name: Check latest Mihomo release
         id: check
         run: |
-          LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -r '.tag_name')
-          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          LATEST=$(curl -sL "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r '.tag_name')
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "Latest Mihomo: $LATEST"
 
       - name: Check if already built
         id: check-release
         run: |
-          # Check if we already have this version in our releases
-          EXISTS=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.check.outputs.latest }}" | jq -r '.tag_name // "not_found"')
+          EXISTS=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.check.outputs.latest }}" | jq -r '.tag_name // "not_found"')
           if [ "$EXISTS" = "${{ steps.check.outputs.latest }}" ]; then
-            echo "already_built=true" >> $GITHUB_OUTPUT
+            echo "already_built=true" >> "$GITHUB_OUTPUT"
             echo "Version already built, skipping"
           else
-            echo "already_built=false" >> $GITHUB_OUTPUT
+            echo "already_built=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Checkout
-        if: steps.check-release.outputs.already_built == 'false'
-        uses: actions/checkout@v4
 
       - name: Setup Go
         if: steps.check-release.outputs.already_built == 'false'
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+          cache: false  # Disable cache - we clone externally
 
       - name: Install cross-compiler
         if: steps.check-release.outputs.already_built == 'false'
@@ -45,59 +40,76 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu
 
-      - name: Build Mihomo for MIPSel
+      - name: Clone and build Mihomo
         if: steps.check-release.outputs.already_built == 'false'
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
-          git clone --depth 1 --branch $VERSION https://github.com/MetaCubeX/mihomo.git /tmp/mihomo
-          cd /tmp/mihomo
+          # Clone mihomo into workspace (not /tmp)
+          git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
+          cd ./mihomo-src
           
-          # Build for MIPSel (MT7621)
+          # Verify we have go.mod
+          ls -la go.mod
+          
+          # Build for MIPSel (MT7621) - softfloat is critical for MT7621
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
           go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
-          -o mihomo-linux-mipsel-softfloat
+          -o ../mihomo-linux-mipsel-softfloat
+
+      - name: Create ipk package
+        if: steps.check-release.outputs.already_built == 'false'
+        env:
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: |
+          VER_CLEAN="${VERSION#v}"
           
-          # Create ipk package structure
-          mkdir -p /tmp/ipk/CONTROL
-          cat > /tmp/ipk/CONTROL/control << EOF
+          # Create ipk structure
+          mkdir -p ./ipk/CONTROL
+          cat > ./ipk/CONTROL/control << EOF
           Package: mihomo
-          Version: ${VERSION#v}
+          Version: ${VER_CLEAN}
           Architecture: mipsel-3.4
           Maintainer: saymer-alt
           Description: Mihomo proxy for Keenetic MT7621
           EOF
           
-          mkdir -p /tmp/ipk/opt/sbin
-          cp mihomo-linux-mipsel-softfloat /tmp/ipk/opt/sbin/mihomo
-          chmod +x /tmp/ipk/opt/sbin/mihomo
+          mkdir -p ./ipk/opt/sbin
+          cp ./mihomo-linux-mipsel-softfloat ./ipk/opt/sbin/mihomo
+          chmod +x ./ipk/opt/sbin/mihomo
           
           # Build ipk
-          mkdir -p /tmp/ipk-build
-          tar czf /tmp/ipk-build/data.tar.gz -C /tmp/ipk opt
-          tar czf /tmp/ipk-build/control.tar.gz -C /tmp/ipk/CONTROL .
-          echo "2.0" > /tmp/ipk-build/debian-binary
+          mkdir -p ./ipk-build
+          tar czf ./ipk-build/data.tar.gz -C ./ipk opt
+          tar czf ./ipk-build/control.tar.gz -C ./ipk/CONTROL .
+          echo "2.0" > ./ipk-build/debian-binary
           
-          IPK_NAME="mihomo_${VERSION#v}_mipsel-3.4.ipk"
-          ar r /tmp/$IPK_NAME /tmp/ipk-build/debian-binary /tmp/ipk-build/control.tar.gz /tmp/ipk-build/data.tar.gz
+          IPK_NAME="mihomo_${VER_CLEAN}_mipsel-3.4.ipk"
+          ar r "./${IPK_NAME}" ./ipk-build/debian-binary ./ipk-build/control.tar.gz ./ipk-build/data.tar.gz
           
-          echo "ipk_name=$IPK_NAME" >> $GITHUB_ENV
-          echo "ipk_path=/tmp/$IPK_NAME" >> $GITHUB_ENV
+          echo "ipk_name=$IPK_NAME" >> "$GITHUB_ENV"
+          
+          # Verify
+          ls -la "./${IPK_NAME}"
+          file ./mihomo-linux-mipsel-softfloat
 
       - name: Create Release
         if: steps.check-release.outputs.already_built == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.check.outputs.latest }}
           name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
           body: |
             Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 routers.
             
+            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`
+            
             Install via opkg:
             ```bash
-            opkg install /tmp/${{ env.ipk_name }}
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check.outputs.latest }}/${{ env.ipk_name }}
+            opkg install ${{ env.ipk_name }}
             ```
           files: |
-            ${{ env.ipk_path }}
+            ${{ env.ipk_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
