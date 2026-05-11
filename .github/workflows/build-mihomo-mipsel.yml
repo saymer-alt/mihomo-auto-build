@@ -1,7 +1,15 @@
+#
+# GitHub Actions workflow to auto-build Mihomo for MIPSel (MT7621) routers
+# -----------------------------------------------------------------------------
+# Optimized build: stripped, trimmed, with proper Version and BuildTime.
+# Trigger: daily at 03:00 UTC, or manually via workflow_dispatch
+#
+
 name: Build Mihomo for MIPSel
 
 on:
   schedule:
+    # Run daily at 03:00 UTC
     - cron: '0 3 * * *'
   workflow_dispatch:
 
@@ -15,6 +23,7 @@ jobs:
       - name: Check latest Mihomo release
         id: check
         run: |
+          echo "=== Fetching latest Mihomo release ==="
           LATEST=$(curl -sL "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r '.tag_name')
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "Latest Mihomo: $LATEST"
@@ -22,6 +31,7 @@ jobs:
       - name: Check if already built
         id: check-release
         run: |
+          echo "=== Checking if already built ==="
           TAG_NAME="mipsel-${{ steps.check.outputs.latest }}"
           EXISTS=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}" | jq -r '.tag_name // "not_found"')
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
@@ -36,12 +46,13 @@ jobs:
         if: steps.check-release.outputs.already_built == 'false'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: 'stable'   # Latest stable (1.24+ or 1.26+)
           cache: false
 
       - name: Install dependencies
         if: steps.check-release.outputs.already_built == 'false'
         run: |
+          echo "=== Installing dependencies ==="
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu
 
@@ -50,13 +61,32 @@ jobs:
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
+          echo "=== Cloning Mihomo $VERSION ==="
           git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
           cd ./mihomo-src
+          
+          echo "=== Building optimized binary for MIPSel (MT7621) ==="
+          # Optimization flags:
+          # -s -w          : strip debug info and DWARF tables (smaller binary)
+          # -trimpath      : remove absolute paths from binary (smaller + reproducible)
+          # -buildid=      : remove build ID (smaller)
+          # -X Version     : embed release version
+          # -X BuildTime   : embed build timestamp
+          # GOMIPS=softfloat : MT7621 has no hardware FPU — mandatory!
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
-          go build -ldflags "-X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' -s -w" \
+          go build \
+          -trimpath \
+          -ldflags "-s -w -buildid= \
+          -X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' \
+          -X 'github.com/metacubex/mihomo/constant.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" \
           -o ../mihomo-linux-mipsel-softfloat
+          
+          echo "=== Build completed ==="
           ls -la ../mihomo-linux-mipsel-softfloat
           file ../mihomo-linux-mipsel-softfloat
+          
+          echo "=== Version check ==="
+          ../mihomo-linux-mipsel-softfloat -v
 
       - name: Create release assets
         if: steps.check-release.outputs.already_built == 'false'
@@ -78,7 +108,7 @@ jobs:
           body: |
             Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 (MIPSel) routers.
             
-            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`
+            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat -trimpath -s -w -buildid=`
             
             **Install (replace binary directly):**
             ```bash
@@ -89,6 +119,18 @@ jobs:
             rm -f /opt/sbin/mihomo
             cp ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
             /opt/etc/init.d/S99mihomo restart
+            ```
+            
+            **For 120+ proxies (low RAM optimization):**
+            Add to `config.yaml`:
+            ```yaml
+            profile:
+              store-selected: false
+              store-fake-ip: false
+            unified-delay: true
+            tcp-concurrent: false
+            find-process-mode: 'off'
+            external-controller: 127.0.0.1:9090  # or disable if not needed
             ```
           files: |
             ${{ steps.package.outputs.bin_name }}
