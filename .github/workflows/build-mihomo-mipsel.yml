@@ -15,7 +15,6 @@ jobs:
       - name: Check latest Mihomo release
         id: check
         run: |
-          echo "=== Fetching latest Mihomo release ==="
           LATEST=$(curl -sL "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r '.tag_name')
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "Latest Mihomo: $LATEST"
@@ -23,7 +22,6 @@ jobs:
       - name: Check if already built
         id: check-release
         run: |
-          echo "=== Checking if already built ==="
           TAG_NAME="mipsel-${{ steps.check.outputs.latest }}"
           EXISTS=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}" | jq -r '.tag_name // "not_found"')
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
@@ -44,29 +42,19 @@ jobs:
       - name: Install dependencies
         if: steps.check-release.outputs.already_built == 'false'
         run: |
-          echo "=== Installing dependencies ==="
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu binutils
-          which ar
-          ar --version | head -1
 
       - name: Clone and build Mihomo
         if: steps.check-release.outputs.already_built == 'false'
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
-          echo "=== Cloning Mihomo $VERSION ==="
           git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
           cd ./mihomo-src
-          
-          echo "=== Building for MIPSel ==="
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
-          go build -v -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
+          go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
           -o ../mihomo-linux-mipsel-softfloat
-          
-          echo "=== Build completed ==="
-          ls -la ../mihomo-linux-mipsel-softfloat
-          file ../mihomo-linux-mipsel-softfloat
 
       - name: Create ipk package
         if: steps.check-release.outputs.already_built == 'false'
@@ -77,14 +65,17 @@ jobs:
           VER_CLEAN="${VERSION#v}"
           echo "=== Creating ipk for version $VER_CLEAN ==="
           
+          # Create control file with echo (no heredoc substitution issues)
           mkdir -p ./ipk/CONTROL
-          cat > ./ipk/CONTROL/control << 'EOF'
-          Package: mihomo
-          Version: ${VER_CLEAN}
-          Architecture: mipsel-3.4
-          Maintainer: saymer-alt
-          Description: Mihomo proxy for Keenetic MT7621
-          EOF
+          echo "Package: mihomo" > ./ipk/CONTROL/control
+          echo "Version: ${VER_CLEAN}" >> ./ipk/CONTROL/control
+          echo "Architecture: mipsel-3.4" >> ./ipk/CONTROL/control
+          echo "Maintainer: saymer-alt" >> ./ipk/CONTROL/control
+          echo "Description: Mihomo proxy for Keenetic MT7621" >> ./ipk/CONTROL/control
+          
+          # Verify control file content
+          echo "=== Control file ==="
+          cat ./ipk/CONTROL/control
           
           mkdir -p ./ipk/opt/sbin
           cp ./mihomo-linux-mipsel-softfloat ./ipk/opt/sbin/mihomo
@@ -93,30 +84,24 @@ jobs:
           mkdir -p ./ipk-build
           echo "=== Creating tar archives ==="
           
-          # control.tar.gz must contain ONLY 'control' file at root
-          # NOT '.' or './control' — opkg is strict about this
-          tar czf ./ipk-build/control.tar.gz -C ./ipk/CONTROL control
-          
-          # data.tar.gz must contain paths from root: opt/sbin/mihomo
-          tar czf ./ipk-build/data.tar.gz -C ./ipk opt
+          # Use ustar format and root ownership to avoid PAX headers
+          tar czf ./ipk-build/control.tar.gz --format=ustar --owner=0 --group=0 -C ./ipk/CONTROL control
+          tar czf ./ipk-build/data.tar.gz --format=ustar --owner=0 --group=0 -C ./ipk opt
           
           echo "2.0" > ./ipk-build/debian-binary
           
           IPK_NAME="mihomo_${VER_CLEAN}_mipsel-3.4.ipk"
-          echo "=== Creating ipk with ar ==="
+          echo "=== Creating ipk ==="
           
-          # Order MUST be: debian-binary, control.tar.gz, data.tar.gz
-          # 's' flag creates symbol table required by opkg
+          # Use 'ar rc' without 's' — opkg expects simple ar format
           rm -f "./${IPK_NAME}"
-          ar rcs "./${IPK_NAME}" ./ipk-build/debian-binary ./ipk-build/control.tar.gz ./ipk-build/data.tar.gz
+          ar rc "./${IPK_NAME}" ./ipk-build/debian-binary ./ipk-build/control.tar.gz ./ipk-build/data.tar.gz
           
-          echo "=== Verifying ipk structure ==="
+          echo "=== Verifying ipk ==="
           ar t "./${IPK_NAME}"
-          
-          echo "=== Verifying control.tar.gz contents ==="
+          echo "=== control.tar.gz contents ==="
           tar tzf ./ipk-build/control.tar.gz
-          
-          echo "=== Verifying data.tar.gz contents ==="
+          echo "=== data.tar.gz contents ==="
           tar tzf ./ipk-build/data.tar.gz
           
           ls -la "./${IPK_NAME}"
