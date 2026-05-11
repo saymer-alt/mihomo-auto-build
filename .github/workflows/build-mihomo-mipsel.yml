@@ -1,0 +1,103 @@
+name: Build Mihomo for MIPSel
+
+on:
+  schedule:
+    # Run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest Mihomo release
+        id: check
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -r '.tag_name')
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest Mihomo: $LATEST"
+
+      - name: Check if already built
+        id: check-release
+        run: |
+          # Check if we already have this version in our releases
+          EXISTS=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.check.outputs.latest }}" | jq -r '.tag_name // "not_found"')
+          if [ "$EXISTS" = "${{ steps.check.outputs.latest }}" ]; then
+            echo "already_built=true" >> $GITHUB_OUTPUT
+            echo "Version already built, skipping"
+          else
+            echo "already_built=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.check-release.outputs.already_built == 'false'
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: steps.check-release.outputs.already_built == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install cross-compiler
+        if: steps.check-release.outputs.already_built == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mipsel-linux-gnu
+
+      - name: Build Mihomo for MIPSel
+        if: steps.check-release.outputs.already_built == 'false'
+        env:
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: |
+          git clone --depth 1 --branch $VERSION https://github.com/MetaCubeX/mihomo.git /tmp/mihomo
+          cd /tmp/mihomo
+          
+          # Build for MIPSel (MT7621)
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+          go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
+          -o mihomo-linux-mipsel-softfloat
+          
+          # Create ipk package structure
+          mkdir -p /tmp/ipk/CONTROL
+          cat > /tmp/ipk/CONTROL/control << EOF
+          Package: mihomo
+          Version: ${VERSION#v}
+          Architecture: mipsel-3.4
+          Maintainer: saymer-alt
+          Description: Mihomo proxy for Keenetic MT7621
+          EOF
+          
+          mkdir -p /tmp/ipk/opt/sbin
+          cp mihomo-linux-mipsel-softfloat /tmp/ipk/opt/sbin/mihomo
+          chmod +x /tmp/ipk/opt/sbin/mihomo
+          
+          # Build ipk
+          mkdir -p /tmp/ipk-build
+          tar czf /tmp/ipk-build/data.tar.gz -C /tmp/ipk opt
+          tar czf /tmp/ipk-build/control.tar.gz -C /tmp/ipk/CONTROL .
+          echo "2.0" > /tmp/ipk-build/debian-binary
+          
+          IPK_NAME="mihomo_${VERSION#v}_mipsel-3.4.ipk"
+          ar r /tmp/$IPK_NAME /tmp/ipk-build/debian-binary /tmp/ipk-build/control.tar.gz /tmp/ipk-build/data.tar.gz
+          
+          echo "ipk_name=$IPK_NAME" >> $GITHUB_ENV
+          echo "ipk_path=/tmp/$IPK_NAME" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: steps.check-release.outputs.already_built == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.check.outputs.latest }}
+          name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
+          body: |
+            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 routers.
+            
+            Install via opkg:
+            ```bash
+            opkg install /tmp/${{ env.ipk_name }}
+            ```
+          files: |
+            ${{ env.ipk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
