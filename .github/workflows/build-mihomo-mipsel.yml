@@ -53,7 +53,7 @@ jobs:
           git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
           cd ./mihomo-src
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
-          go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
+          go build -ldflags "-X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' -s -w" \
           -o ../mihomo-linux-mipsel-softfloat
           ls -la ../mihomo-linux-mipsel-softfloat
           file ../mihomo-linux-mipsel-softfloat
@@ -65,10 +65,7 @@ jobs:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
           VER_CLEAN="${VERSION#v}"
-          
-          # Rename binary to match official naming convention
           cp ./mihomo-linux-mipsel-softfloat ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
-          
           echo "bin_name=mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" >> "$GITHUB_OUTPUT"
           ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
 
@@ -83,17 +80,14 @@ jobs:
             
             **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`
             
-            **Files:**
-            - `mihomo-linux-mipsel-softfloat-vX.X.X` — raw binary (replace directly)
-            
             **Install (replace binary directly):**
             ```bash
             cd /tmp
             wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check-release.outputs.tag_name }}/${{ steps.package.outputs.bin_name }}
             chmod +x ${{ steps.package.outputs.bin_name }}
-            ./${{ steps.package.outputs.bin_name }} -v   # test
-            cp /opt/sbin/mihomo /opt/sbin/mihomo.backup
-            mv ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
+            ./${{ steps.package.outputs.bin_name }} -v
+            rm -f /opt/sbin/mihomo
+            cp ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
             /opt/etc/init.d/S99mihomo restart
             ```
           files: |
