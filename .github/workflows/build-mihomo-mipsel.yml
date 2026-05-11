@@ -5,6 +5,10 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
 
+# Даём права на создание релизов
+permissions:
+  contents: write
+
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
@@ -32,7 +36,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-          cache: false  # Disable cache - we clone externally
+          cache: false
 
       - name: Install cross-compiler
         if: steps.check-release.outputs.already_built == 'false'
@@ -45,14 +49,10 @@ jobs:
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
-          # Clone mihomo into workspace (not /tmp)
           git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
           cd ./mihomo-src
-          
-          # Verify we have go.mod
           ls -la go.mod
           
-          # Build for MIPSel (MT7621) - softfloat is critical for MT7621
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
           go build -ldflags "-X github.com/MetaCubeX/mihomo/constant.Version=${VERSION} -s -w" \
           -o ../mihomo-linux-mipsel-softfloat
@@ -64,7 +64,6 @@ jobs:
         run: |
           VER_CLEAN="${VERSION#v}"
           
-          # Create ipk structure
           mkdir -p ./ipk/CONTROL
           cat > ./ipk/CONTROL/control << EOF
           Package: mihomo
@@ -78,38 +77,10 @@ jobs:
           cp ./mihomo-linux-mipsel-softfloat ./ipk/opt/sbin/mihomo
           chmod +x ./ipk/opt/sbin/mihomo
           
-          # Build ipk
           mkdir -p ./ipk-build
           tar czf ./ipk-build/data.tar.gz -C ./ipk opt
           tar czf ./ipk-build/control.tar.gz -C ./ipk/CONTROL .
           echo "2.0" > ./ipk-build/debian-binary
           
           IPK_NAME="mihomo_${VER_CLEAN}_mipsel-3.4.ipk"
-          ar r "./${IPK_NAME}" ./ipk-build/debian-binary ./ipk-build/control.tar.gz ./ipk-build/data.tar.gz
-          
-          echo "ipk_name=$IPK_NAME" >> "$GITHUB_ENV"
-          
-          # Verify
-          ls -la "./${IPK_NAME}"
-          file ./mihomo-linux-mipsel-softfloat
-
-      - name: Create Release
-        if: steps.check-release.outputs.already_built == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.check.outputs.latest }}
-          name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
-          body: |
-            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 routers.
-            
-            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`
-            
-            Install via opkg:
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check.outputs.latest }}/${{ env.ipk_name }}
-            opkg install ${{ env.ipk_name }}
-            ```
-          files: |
-            ${{ env.ipk_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ar r "./${IPK_NAME}" ./ipk-build/debian
