@@ -21,75 +21,34 @@ jobs:
       - name: Check latest Mihomo release
         id: check
         run: |
-          echo "=== Fetching latest Mihomo release ==="
-          LATEST=$(curl -sL "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r '.tag_name')
-          
-          # Validate response
-          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
-            echo "WARNING: GitHub API returned null or empty. Skipping build."
-            echo "latest=SKIP" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          
+          set -euo pipefail
+          LATEST=$(curl -fsSL --retry 3 https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -er '.tag_name')
+          [[ "$LATEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "Latest Mihomo: $LATEST"
 
-      - name: Check release asset completeness
-        if: steps.check.outputs.latest != 'SKIP'
+      - name: Inspect release and verify checksum bytes
         id: check-release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG_NAME="mipsel-${{ steps.check.outputs.latest }}"
-          BIN_NAME="mihomo-linux-mipsel-softfloat-${{ steps.check.outputs.latest }}"
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-
-          STATUS=$(curl --silent --show-error --location --retry 3 \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "Accept: application/vnd.github+json" \
-            --output release.json --write-out '%{http_code}' \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME")
-          case "$STATUS" in
-            404)
-              echo "No release for $TAG_NAME; build required"
-              echo "already_built=false" >> "$GITHUB_OUTPUT"
-              ;;
-            200)
-              if bash scripts/check-release-assets.sh release.json "$TAG_NAME" "$BIN_NAME"; then
-                echo "Verified binary and checksum assets for $TAG_NAME; skipping"
-                echo "already_built=true" >> "$GITHUB_OUTPUT"
-              else
-                code=$?
-                if [ "$code" -ne 1 ]; then
-                  echo "Release metadata validation failed (exit $code)" >&2
-                  exit "$code"
-                fi
-                echo "Release $TAG_NAME is incomplete; rebuilding and repairing its assets"
-                echo "already_built=false" >> "$GITHUB_OUTPUT"
-              fi
-              ;;
-            *)
-              echo "GitHub release lookup failed with HTTP $STATUS" >&2
-              exit 1
-              ;;
-          esac
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: python3 scripts/release_assets.py plan "mipsel-$VERSION" "mihomo-linux-mipsel-softfloat-v${VERSION#v}"
 
       - name: Setup Go
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
       - name: Install dependencies
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         run: |
           echo "=== Installing dependencies ==="
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu
 
       - name: Clone and build Mihomo
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
@@ -111,7 +70,7 @@ jobs:
           file ../mihomo-linux-mipsel-softfloat
 
       - name: Create release assets
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         id: package
         env:
           VERSION: ${{ steps.check.outputs.latest }}
@@ -123,62 +82,10 @@ jobs:
           sha256sum --check "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}.sha256"
           ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}*
 
-      - name: Create Release
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.check-release.outputs.tag_name }}
-          name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
-          body: |
-            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 (MIPSel) routers.
-            
-            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat -trimpath -s -w -buildid=`
-            
-            **Install (replace binary directly):**
-            ```bash
-            cd /tmp
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check-release.outputs.tag_name }}/${{ steps.package.outputs.bin_name }}
-            chmod +x ${{ steps.package.outputs.bin_name }}
-            ./${{ steps.package.outputs.bin_name }} -v
-            rm -f /opt/sbin/mihomo
-            cp ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
-            /opt/etc/init.d/S99mihomo restart
-            ```
-            
-            **For 120+ proxies (low RAM optimization):**
-            Add to `config.yaml`:
-            ```yaml
-            profile:
-              store-selected: false
-              store-fake-ip: false
-            unified-delay: true
-            tcp-concurrent: false
-            find-process-mode: 'off'
-            external-controller: 127.0.0.1:9090
-            ```
-          fail_on_unmatched_files: true
-          overwrite_files: true
-          files: |
-            ${{ steps.package.outputs.bin_name }}
-            ${{ steps.package.outputs.bin_name }}.sha256
-
-      - name: Verify published release assets and digest
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+      - name: Publish only missing or invalid assets
+        if: steps.check-release.outputs.mode != 'complete'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.check-release.outputs.tag_name }}
-          BIN_NAME: ${{ steps.package.outputs.bin_name }}
-        run: |
-          curl --fail --silent --show-error --location --retry 3 \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" > release-verify.json
-
-          bash scripts/check-release-assets.sh release-verify.json "$TAG_NAME" "$BIN_NAME"
-          EXPECTED_SHA=$(cut -d ' ' -f 1 "$BIN_NAME.sha256")
-          PUBLISHED_DIGEST=$(jq -r --arg name "$BIN_NAME" '.assets[] | select(.name == $name) | .digest' release-verify.json)
-          test "$PUBLISHED_DIGEST" = "sha256:$EXPECTED_SHA" || {
-            echo "Published binary digest differs from locally built checksum" >&2
-            exit 1
-          }
-          echo "Published binary checksum verified for $TAG_NAME"
+          BIN_NAME: ${{ steps.check-release.outputs.bin_name }}
+        run: python3 scripts/release_assets.py publish "$TAG_NAME" "$BIN_NAME"
