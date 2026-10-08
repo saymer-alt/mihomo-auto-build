@@ -8,10 +8,16 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: mihomo-mipsel-release
+  cancel-in-progress: false
+
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check latest Mihomo release
         id: check
         run: |
@@ -28,20 +34,45 @@ jobs:
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "Latest Mihomo: $LATEST"
 
-      - name: Check if already built
+      - name: Check release asset completeness
         if: steps.check.outputs.latest != 'SKIP'
         id: check-release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "=== Checking if already built ==="
           TAG_NAME="mipsel-${{ steps.check.outputs.latest }}"
-          EXISTS=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}" | jq -r '.tag_name // "not_found"')
+          BIN_NAME="mihomo-linux-mipsel-softfloat-${{ steps.check.outputs.latest }}"
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          if [ "$EXISTS" = "$TAG_NAME" ]; then
-            echo "already_built=true" >> "$GITHUB_OUTPUT"
-            echo "Version $TAG_NAME already built, skipping"
-          else
-            echo "already_built=false" >> "$GITHUB_OUTPUT"
-          fi
+
+          STATUS=$(curl --silent --show-error --location --retry 3 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --output release.json --write-out '%{http_code}' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME")
+          case "$STATUS" in
+            404)
+              echo "No release for $TAG_NAME; build required"
+              echo "already_built=false" >> "$GITHUB_OUTPUT"
+              ;;
+            200)
+              if bash scripts/check-release-assets.sh release.json "$TAG_NAME" "$BIN_NAME"; then
+                echo "Verified binary and checksum assets for $TAG_NAME; skipping"
+                echo "already_built=true" >> "$GITHUB_OUTPUT"
+              else
+                code=$?
+                if [ "$code" -ne 1 ]; then
+                  echo "Release metadata validation failed (exit $code)" >&2
+                  exit "$code"
+                fi
+                echo "Release $TAG_NAME is incomplete; rebuilding and repairing its assets"
+                echo "already_built=false" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            *)
+              echo "GitHub release lookup failed with HTTP $STATUS" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Setup Go
         if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
@@ -88,7 +119,9 @@ jobs:
           VER_CLEAN="${VERSION#v}"
           cp ./mihomo-linux-mipsel-softfloat ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
           echo "bin_name=mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" >> "$GITHUB_OUTPUT"
-          ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
+          sha256sum "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" > "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}.sha256"
+          sha256sum --check "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}.sha256"
+          ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}*
 
       - name: Create Release
         if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
@@ -123,5 +156,29 @@ jobs:
             find-process-mode: 'off'
             external-controller: 127.0.0.1:9090
             ```
+          fail_on_unmatched_files: true
+          overwrite_files: true
           files: |
             ${{ steps.package.outputs.bin_name }}
+            ${{ steps.package.outputs.bin_name }}.sha256
+
+      - name: Verify published release assets and digest
+        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.check-release.outputs.tag_name }}
+          BIN_NAME: ${{ steps.package.outputs.bin_name }}
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" > release-verify.json
+
+          bash scripts/check-release-assets.sh release-verify.json "$TAG_NAME" "$BIN_NAME"
+          EXPECTED_SHA=$(cut -d ' ' -f 1 "$BIN_NAME.sha256")
+          PUBLISHED_DIGEST=$(jq -r --arg name "$BIN_NAME" '.assets[] | select(.name == $name) | .digest' release-verify.json)
+          test "$PUBLISHED_DIGEST" = "sha256:$EXPECTED_SHA" || {
+            echo "Published binary digest differs from locally built checksum" >&2
+            exit 1
+          }
+          echo "Published binary checksum verified for $TAG_NAME"
