@@ -49,19 +49,29 @@ def digest(asset):
     return value[7:]
 
 
-def inspect(api, repo, tag, binary):
-    try:
-        release = api.api(f'repos/{repo}/releases/tags/{tag}')
-    except NotFound:
-        return {'mode': 'build', 'release': None, 'binary': None, 'sidecar': None}
+def starter(asset):
+    return (asset.get('state') == 'starter' and type(asset.get('size')) is int
+            and asset['size'] == 0 and asset.get('digest') is None)
+
+
+def read_release(api, repo, tag):
+    release = api.api(f'repos/{repo}/releases/tags/{tag}')
     if (not isinstance(release, dict) or release.get('tag_name') != tag
             or release.get('draft') is not False
-            or not isinstance(release.get('id'), int)
+            or type(release.get('id')) is not int or release['id'] <= 0
             or not isinstance(release.get('assets'), list)):
         raise MetadataError('Invalid release identity/metadata')
-    assets = release['assets']
-    if any(not isinstance(a, dict) or not isinstance(a.get('name'), str) for a in assets):
+    if any(not isinstance(a, dict) or not isinstance(a.get('name'), str) for a in release['assets']):
         raise MetadataError('Invalid asset metadata')
+    return release
+
+
+def inspect(api, repo, tag, binary):
+    try:
+        release = read_release(api, repo, tag)
+    except NotFound:
+        return {'mode': 'build', 'release': None, 'binary': None, 'sidecar': None}
+    assets = release['assets']
 
     def one(name):
         found = [a for a in assets if a['name'] == name]
@@ -70,8 +80,9 @@ def inspect(api, repo, tag, binary):
         if not found:
             return None
         a = found[0]
-        if (type(a.get('id')) is not int or type(a.get('size')) is not int
-                or a['size'] < 0 or a.get('state') != 'uploaded'):
+        if (type(a.get('id')) is not int or a['id'] <= 0 or type(a.get('size')) is not int
+                or sum(x.get('id') == a['id'] for x in assets) != 1
+                or a['size'] < 0 or not (a.get('state') == 'uploaded' or starter(a))):
             raise MetadataError('Invalid asset identity/size/state')
         return a
 
@@ -92,6 +103,20 @@ def inspect(api, repo, tag, binary):
     return dict(state, mode='complete')
 
 
+def delete_checked(api, repo, tag, binary, asset, release_id, expected_binary, expected_sidecar):
+    if asset['size'] != 0 or not (asset['state'] == 'uploaded' or starter(asset)):
+        raise MetadataError('Refusing to delete a nonempty/unknown asset')
+    live = read_release(api, repo, tag)
+    targets = [a for a in live['assets'] if a['name'] in (binary, binary + '.sha256')]
+    expected = [a for a in (expected_binary, expected_sidecar) if a is not None]
+    if (live['id'] != release_id or len(targets) != len(expected)
+            or {a['name']: a for a in targets} != {a['name']: a for a in expected}
+            or sum(a.get('id') == asset['id'] for a in live['assets']) != 1
+            or api.api(f'repos/{repo}/releases/assets/{asset["id"]}') != asset):
+        raise MetadataError('Release/asset changed before deletion; rerun')
+    api.api(f'repos/{repo}/releases/assets/{asset["id"]}', 'DELETE')
+
+
 def publish(api, repo, tag, binary, directory, planned):
     fresh = inspect(api, repo, tag, binary)
     if fresh != planned:
@@ -109,20 +134,30 @@ def publish(api, repo, tag, binary, directory, planned):
                      'body': 'MIPSel softfloat binary with SHA-256 verification.'})
         if fresh['binary']:
             # inspect only admits a zero-length binary to this branch.
-            api.api(f'repos/{repo}/releases/assets/{fresh["binary"]["id"]}', 'DELETE')
+            delete_checked(api, repo, tag, binary, fresh['binary'], fresh['release'],
+                           fresh['binary'], fresh['sidecar'])
         api.upload(tag, path)
         # A stale sidecar may belong to an invalid former binary. Verify the
         # newly uploaded binary independently before removing that sidecar.
-        release = api.api(f'repos/{repo}/releases/tags/{tag}')
+        release = read_release(api, repo, tag)
         matches = [a for a in release['assets'] if a['name'] == binary]
-        if len(matches) != 1 or matches[0]['size'] != path.stat().st_size or digest(matches[0]) != expected:
+        if (len(matches) != 1 or matches[0]['state'] != 'uploaded'
+                or matches[0]['size'] != path.stat().st_size or digest(matches[0]) != expected
+                or (fresh['release'] is not None and release['id'] != fresh['release'])):
             raise MetadataError('Uploaded binary digest/size mismatch')
+        release_id, expected_binary = release['id'], matches[0]
+        if fresh['sidecar'] and fresh['sidecar']['size'] > 0:
+            # A pre-existing valid checksum needs no replacement. A conflict fails closed.
+            if inspect(api, repo, tag, binary)['mode'] == 'complete':
+                return
     else:
         expected = digest(fresh['binary'])
+        release_id, expected_binary = fresh['release'], fresh['binary']
     side = Path(directory) / (binary + '.sha256')
     side.write_bytes(f'{expected}  {binary}\n'.encode())
     if fresh['sidecar']:
-        api.api(f'repos/{repo}/releases/assets/{fresh["sidecar"]["id"]}', 'DELETE')
+        delete_checked(api, repo, tag, binary, fresh['sidecar'], release_id,
+                       expected_binary, fresh['sidecar'])
     api.upload(tag, side)
     if inspect(api, repo, tag, binary)['mode'] != 'complete':
         raise MetadataError('Publication remains incomplete')

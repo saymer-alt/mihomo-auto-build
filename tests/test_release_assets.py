@@ -41,6 +41,8 @@ class Fake:
             return None
         if raw:
             return self.content[int(path.rsplit('/',1)[1])]
+        if '/releases/assets/' in path:
+            return copy.deepcopy(next(a for a in self.release['assets'] if a['id'] == int(path.rsplit('/',1)[1])))
         if not self.release:
             raise m.NotFound(path)
         return copy.deepcopy(self.release)

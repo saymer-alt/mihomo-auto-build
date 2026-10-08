@@ -20,4 +20,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Regression tests
-        run: python3 -m unittest discover -s tests -p "test_release_assets.py"
+        run: python3 -m unittest discover -s tests -p "test_*.py"
