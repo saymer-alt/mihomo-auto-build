@@ -1,0 +1,23 @@
+name: Test MIPSel release readiness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/build-mihomo-mipsel.yml'
+      - '.github/workflows/test-release-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regression tests
+        run: python3 -m unittest discover -s tests -p "test_release_assets.py"

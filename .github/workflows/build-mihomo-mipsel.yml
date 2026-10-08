@@ -8,57 +8,47 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: mihomo-mipsel-release
+  cancel-in-progress: false
+
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check latest Mihomo release
         id: check
         run: |
-          echo "=== Fetching latest Mihomo release ==="
-          LATEST=$(curl -sL "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r '.tag_name')
-          
-          # Validate response
-          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
-            echo "WARNING: GitHub API returned null or empty. Skipping build."
-            echo "latest=SKIP" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          
+          set -euo pipefail
+          LATEST=$(curl -fsSL --retry 3 https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -er '.tag_name')
+          [[ "$LATEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "Latest Mihomo: $LATEST"
 
-      - name: Check if already built
-        if: steps.check.outputs.latest != 'SKIP'
+      - name: Inspect release and verify checksum bytes
         id: check-release
-        run: |
-          echo "=== Checking if already built ==="
-          TAG_NAME="mipsel-${{ steps.check.outputs.latest }}"
-          EXISTS=$(curl -sL "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}" | jq -r '.tag_name // "not_found"')
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          if [ "$EXISTS" = "$TAG_NAME" ]; then
-            echo "already_built=true" >> "$GITHUB_OUTPUT"
-            echo "Version $TAG_NAME already built, skipping"
-          else
-            echo "already_built=false" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: python3 scripts/release_assets.py plan "mipsel-$VERSION" "mihomo-linux-mipsel-softfloat-v${VERSION#v}"
 
       - name: Setup Go
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
 
       - name: Install dependencies
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         run: |
           echo "=== Installing dependencies ==="
           sudo apt-get update
           sudo apt-get install -y gcc-mipsel-linux-gnu
 
       - name: Clone and build Mihomo
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         env:
           VERSION: ${{ steps.check.outputs.latest }}
         run: |
@@ -80,7 +70,7 @@ jobs:
           file ../mihomo-linux-mipsel-softfloat
 
       - name: Create release assets
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
+        if: steps.check-release.outputs.mode == 'build'
         id: package
         env:
           VERSION: ${{ steps.check.outputs.latest }}
@@ -88,40 +78,14 @@ jobs:
           VER_CLEAN="${VERSION#v}"
           cp ./mihomo-linux-mipsel-softfloat ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
           echo "bin_name=mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" >> "$GITHUB_OUTPUT"
-          ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}
+          sha256sum "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}" > "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}.sha256"
+          sha256sum --check "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}.sha256"
+          ls -la ./mihomo-linux-mipsel-softfloat-v${VER_CLEAN}*
 
-      - name: Create Release
-        if: steps.check.outputs.latest != 'SKIP' && steps.check-release.outputs.already_built == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.check-release.outputs.tag_name }}
-          name: "Mihomo ${{ steps.check.outputs.latest }} for MIPSel"
-          body: |
-            Auto-built Mihomo ${{ steps.check.outputs.latest }} for Keenetic MT7621 (MIPSel) routers.
-            
-            **Build flags:** `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat -trimpath -s -w -buildid=`
-            
-            **Install (replace binary directly):**
-            ```bash
-            cd /tmp
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.check-release.outputs.tag_name }}/${{ steps.package.outputs.bin_name }}
-            chmod +x ${{ steps.package.outputs.bin_name }}
-            ./${{ steps.package.outputs.bin_name }} -v
-            rm -f /opt/sbin/mihomo
-            cp ${{ steps.package.outputs.bin_name }} /opt/sbin/mihomo
-            /opt/etc/init.d/S99mihomo restart
-            ```
-            
-            **For 120+ proxies (low RAM optimization):**
-            Add to `config.yaml`:
-            ```yaml
-            profile:
-              store-selected: false
-              store-fake-ip: false
-            unified-delay: true
-            tcp-concurrent: false
-            find-process-mode: 'off'
-            external-controller: 127.0.0.1:9090
-            ```
-          files: |
-            ${{ steps.package.outputs.bin_name }}
+      - name: Publish only missing or invalid assets
+        if: steps.check-release.outputs.mode != 'complete'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.check-release.outputs.tag_name }}
+          BIN_NAME: ${{ steps.check-release.outputs.bin_name }}
+        run: python3 scripts/release_assets.py publish "$TAG_NAME" "$BIN_NAME"
