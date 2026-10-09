@@ -46,15 +46,17 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
    ```
 
    If the check fails, do not use the file — re-download and compare release notes.
-4. Back up the currently working binary before replacing it, so a rollback is always possible.
-5. Replace the binary with correct ownership/executable bits, then restart your Mihomo service. The exact commands depend on your setup — for example, systemd uses `systemctl stop mihomo` / `systemctl start mihomo`, while an Entware install from [keenetic-auto-setup](https://github.com/saymer-alt/keenetic-auto-setup) uses `/opt/etc/init.d/S99mihomo stop` / `start`.
-6. Confirm the running version:
+4. Back up the currently working binary before replacing it, so a rollback is always possible. Note where that binary lives — you will need the same path (or the same `PATH` lookup) for verification in step 6.
+5. **Stop the service first**, replace the binary (keep ownership/executable bits), then start the service again. The exact commands depend on your setup — for example, systemd uses `systemctl stop mihomo` / `systemctl start mihomo`, while an Entware install from [keenetic-auto-setup](https://github.com/saymer-alt/keenetic-auto-setup) uses `/opt/etc/init.d/S99mihomo stop` / `start`. Do not replace a binary while the service is running: the running process keeps the old file mapped, and a half-replaced state is easy to misdiagnose. This README does not assume any specific install path — use the path your own service configuration points to.
+6. Verify the version of the **actually running process** after the restart:
 
    ```sh
    mihomo -v
    ```
 
-If Mihomo does not start after the replacement, restore the backup from step 4 and restart the service again — then check the release notes for known issues before retrying.
+   This prints the version of the binary found via `PATH` (or run it with the explicit path from step 4/5). The most reliable check of the running daemon is the controller API `GET /version` — it is what dashboards like MetaCubeXD display. If the check still reports the old version, the service is executing a different file than the one you replaced — find the binary path from your service configuration and repeat the replacement on that file.
+
+7. **Rollback.** If Mihomo does not start after the replacement — or the version check shows anything other than the expected release — restore the backup from step 4 to the same path, restart the service, and re-verify. Check the release notes for known issues before retrying the new binary. Do not leave the service stopped while investigating.
 
 ## Scope and limitations
 
