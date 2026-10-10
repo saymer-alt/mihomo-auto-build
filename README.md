@@ -78,7 +78,7 @@ python3 -m unittest discover -s tests -p "test_*.py"
 
 ## Licensing and attribution
 
-This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The local build workflows and helper scripts do **not** yet have a selected repository-wide license. See [LICENSING.md](LICENSING.md) for separate licensing scopes and the planned release-notice check.
+This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The original build workflows, helper scripts and tests in this repository are licensed **MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The upstream Mihomo MIT grant is a separate license from its own copyright holder. See [LICENSING.md](LICENSING.md) for separate licensing scopes and the planned release-notice check.
 
 ## Related projects
 
