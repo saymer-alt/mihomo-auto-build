@@ -62,8 +62,8 @@ sidecar, and — after the third-party notice files for that version have
 been generated and reviewed — attaches `THIRD_PARTY_LICENSES-<version>.txt`
 and `THIRD_PARTY_NOTICES-<version>.txt`. If an existing notice differs, or
 an upload is incomplete, every step refuses mutation and reports an error.
-This is **not** a completed legal review: dependency findings (including
-GPL/LGPL/MPL indicators) require human provenance review tracked in
+This is **not** a completed legal review: the [20 GPL/LGPL/MPL indicators](COPYLEFT-REVIEW.md)
+require human provenance and actual-linkage review tracked in
 [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
 
 ## License boundaries and remaining work
