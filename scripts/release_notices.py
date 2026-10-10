@@ -77,6 +77,11 @@ def publish(api, repo, tag, files):
     release = assets.read_release(api, repo, tag)
     protected = {a["name"]: a for a in release["assets"]
                  if a["name"] not in names}
+    # Preflight ALL existing notices before making even the first upload.
+    # Otherwise a corrupt full-text asset could be discovered only after
+    # the valid summary was already added, leaving a partial mutation.
+    for name in names:
+        check_asset(api, repo, release, name, local[name])
     uploaded = []
     for name in names:
         release = assets.read_release(api, repo, tag)
