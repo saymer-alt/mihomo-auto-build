@@ -27,14 +27,15 @@ As inspected on 2026-10-10:
 - Earlier releases `mipsel-v1.19.31` and `mipsel-v1.19.30` were observed to
   have only the binary asset.
 - An independently downloadable upstream `LICENSE` or `NOTICE` asset was
-  **not** present in these inspected releases.
+  **not** present in these inspected releases at the time of the audit.
 
 The upstream MIT license requires preserving its copyright and permission
-notice in copies/substantial portions. A future workflow change should ensure
-that each redistributed upstream binary is accompanied by the applicable
-license notice(s), not only a checksum. The exact packaging and dependency
-attribution scheme need a separate implementation, tests and review; this
-document alone does not prove past release compliance.
+notice in copies/substantial portions. The updated workflow now retrieves the
+exact source-tag `LICENSE` and safely publishes `<binary>.LICENSE` alongside
+the already verified binary and SHA-256 sidecar. If an existing notice differs,
+or an upload is incomplete, it refuses mutation and reports an error.
+This addresses **Mihomo upstream MIT notice distribution** for new runs; it
+is not a complete audit of transitive Go module licenses or historical releases.
 
 ## License boundaries and remaining work
 
@@ -44,9 +45,9 @@ document alone does not prove past release compliance.
   `Copyright 2023 KT`; neither notice supersedes the other.
 - New external contributions require independent rights/provenance review;
   the owner cannot relicense another person's work without permission.
-- Shipping the license/required third-party notices **with each released
-  binary** remains a separate task in
-  [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
+- Mihomo's tagged MIT notice is handled by `scripts/release_license.py`.
+  **Third-party Go dependency notices** and historical release consistency
+  still require review in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
 - Consider historical release updates only after separate review. Never
   overwrite working binaries or silently rewrite released assets.
 
