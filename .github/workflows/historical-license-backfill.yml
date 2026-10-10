@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: MIT
+name: Historical MIPSel license backfill
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        required: true
+        type: choice
+        options: ['1.19.31', '1.19.30', '1.19.29', '1.19.28', '1.19.27', '1.19.26', '1.19.25', '1.19.24']
+      mode:
+        required: true
+        default: plan
+        type: choice
+        options: [plan, publish]
+permissions:
+  contents: write
+concurrency:
+  group: mihomo-mipsel-release
+  cancel-in-progress: false
+jobs:
+  historical-notices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Select immutable historical version
+        env:
+          HIST_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$HIST_VERSION" in
+            1.19.24|1.19.25|1.19.26|1.19.27|1.19.28|1.19.29|1.19.30|1.19.31) ;;
+            *) exit 2 ;;
+          esac
+          echo "HIST_VERSION=$HIST_VERSION" >> "$GITHUB_ENV"
+          echo "TAG=mipsel-v$HIST_VERSION" >> "$GITHUB_ENV"
+          echo "BIN=mihomo-linux-mipsel-softfloat-v$HIST_VERSION" >> "$GITHUB_ENV"
+      - name: Snapshot and verify existing released binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > before.json
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$BIN" -O "./$BIN"
+          python3 scripts/historical_backfill.py before --version "$HIST_VERSION" --release-json before.json --binary "./$BIN"
+          python3 - <<'PY'
+          import os
+          from scripts.collect_upstream_licenses import main_version
+          if main_version(os.environ["BIN"]) != "v" + os.environ["HIST_VERSION"]:
+              raise SystemExit("Published binary build-info version mismatch")
+          PY
+      - name: Collect exact-version notices before mutation
+        run: |
+          set -euo pipefail
+          python3 scripts/collect_upstream_licenses.py --binary "./$BIN" \
+            --summary "THIRD_PARTY_LICENSES-v$HIST_VERSION.txt" \
+            --full "THIRD_PARTY_NOTICES-v$HIST_VERSION.txt" \
+            --report "historic-license-report-v$HIST_VERSION.json"
+          python3 - <<'PY'
+          import os
+          from scripts.release_license import download_tagged_license
+          download_tagged_license(os.environ["TAG"])
+          PY
+      - name: Fail closed unless checksum-only or complete
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_assets.py plan "$TAG" "$BIN"
+          python3 - <<'PY'
+          import json
+          if json.load(open("release-plan.json"))["mode"] not in ("checksum", "complete"):
+              raise SystemExit("Refusing any binary build/replacement")
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > check.json
+          python3 scripts/historical_backfill.py check --version "$HIST_VERSION" --release-json check.json --binary "./$BIN"
+      - name: Publish only missing sidecar and notices (opt-in)
+        if: inputs.mode == 'publish'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_assets.py publish "$TAG" "$BIN"
+          python3 scripts/release_license.py "$TAG" "$BIN"
+          python3 scripts/release_notices.py publish "$TAG" \
+            "THIRD_PARTY_LICENSES-v$HIST_VERSION.txt" \
+            "THIRD_PARTY_NOTICES-v$HIST_VERSION.txt"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > after.json
+          python3 scripts/historical_backfill.py after --version "$HIST_VERSION" --release-json after.json --binary "./$BIN"
+          python3 - <<'PY'
+          import os
+          from scripts.release_assets import GitHub, inspect
+          if inspect(GitHub(), os.environ["GITHUB_REPOSITORY"], os.environ["TAG"], os.environ["BIN"])["mode"] != "complete":
+              raise SystemExit("Checksum asset invalid after backfill")
+          PY
+      - name: Report dry-run success
+        if: inputs.mode == 'plan'
+        run: echo "DRY RUN PASS; no GitHub Release assets modified"
+      - name: Failure-only diagnostic report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historic-backfill-failure
+          path: historic-license-report-*.json
+          retention-days: 7
+          if-no-files-found: ignore
