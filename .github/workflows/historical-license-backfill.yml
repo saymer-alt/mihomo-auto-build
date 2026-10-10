@@ -56,6 +56,9 @@ jobs:
               raise SystemExit("Published binary build-info version mismatch")
           PY
       - name: Collect exact-version notices before mutation
+        env:
+          # release_license imports release_assets as a top-level module.
+          PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
           set -euo pipefail
           python3 scripts/collect_upstream_licenses.py --binary "./$BIN" \
