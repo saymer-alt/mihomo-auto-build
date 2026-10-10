@@ -118,6 +118,39 @@ def delete_checked(api, repo, tag, binary, asset, release_id, expected_binary, e
     api.api(f'repos/{repo}/releases/assets/{asset["id"]}', 'DELETE')
 
 
+def release_body(tag, repo, build_commit):
+    """Source download instructions next to newly published binary releases.
+
+    Does not change any existing Release description or binary. A genuine
+    immutable workflow commit must be supplied by GitHub Actions.
+    """
+    if not re.fullmatch(r'mipsel-v[0-9]+\\.[0-9]+\\.[0-9]+', tag):
+        raise MetadataError('Invalid version for release source pointer')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
+        raise MetadataError('Invalid repository for release source pointer')
+    if not re.fullmatch(r'[a-f0-9]{40}', build_commit):
+        raise MetadataError('Immutable build commit SHA is required for source pointer')
+    upstream = tag.removeprefix('mipsel-')
+    return (f'MIPSel softfloat binary from Mihomo upstream {upstream}.\\n\\n'
+            f'## Corresponding source and build instructions\\n\\n'
+            f'- **Upstream tagged source (download):** '
+            f'https://github.com/MetaCubeX/mihomo/archive/refs/tags/{upstream}.tar.gz\\n'
+            f'- **Pinned module graph:** '
+            f'https://github.com/MetaCubeX/mihomo/blob/{upstream}/go.mod '
+            f'and go.sum (same tag; account for replace directives).\\n'
+            f'- **Exact builder repository snapshot:** '
+            f'https://github.com/{repo}/archive/{build_commit}.zip\\n'
+            f'- **Build workflow and flags (at build commit):** '
+            f'https://github.com/{repo}/blob/{build_commit}/.github/workflows/build-mihomo-mipsel.yml\\n'
+            f'- **Source availability and limitations:** '
+            f'https://github.com/{repo}/blob/{build_commit}/SOURCE-AVAILABILITY.md\\n'
+            f'- **Third-party module sources:** Go module proxy at versions from '
+            f'tagged go.mod/go.sum, with go version -m <binary> cross-check.\\n\\n'
+            f'Binary SHA-256, tagged upstream GPL-3.0 license and collected third-party '
+            f'notices are independent release assets. The source map is not a '
+            f'legal compliance certification; review GPLv3 §6 and dependency licenses.\\n')
+
+
 def publish(api, repo, tag, binary, directory, planned):
     fresh = inspect(api, repo, tag, binary)
     if fresh != planned:
@@ -132,7 +165,7 @@ def publish(api, repo, tag, binary, directory, planned):
         if fresh['release'] is None:
             api.api(f'repos/{repo}/releases', 'POST',
                     {'tag_name': tag, 'name': f'Mihomo {tag[7:]} for MIPSel',
-                     'body': 'MIPSel softfloat binary with SHA-256 verification.'})
+                     'body': release_body(tag, repo, os.environ.get('GITHUB_SHA', ''))})
         if fresh['binary']:
             # inspect only admits a zero-length binary to this branch.
             delete_checked(api, repo, tag, binary, fresh['binary'], fresh['release'],
