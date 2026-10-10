@@ -24,8 +24,12 @@ repository.
 GPL-3.0 imposes more obligations than the MIT notice previously assumed:
 anyone who conveys a published binary must pass along the license text,
 carry applicable copyright notices, and offer the **complete corresponding
-source** — for these rebuilds that is the tagged upstream source tree plus
-this repository's build scripts. `scripts/release_license.py` now validates
+source**. Tagged upstream sources and this repository's version-appropriate
+build scripts are **starting points**, but the required source may also
+include dependency modules, generated/embedded data and applicable installation
+or modification scripts. The completeness of the actual published binaries'
+source has **not** been established. See [SOURCE-AVAILABILITY.md](SOURCE-AVAILABILITY.md)
+for exact source entry points and the GPLv3 §6(d) checklist. `scripts/release_license.py` now validates
 and attaches the exact tagged GPL-3.0 text as `<binary>.LICENSE`;
 `scripts/collect_upstream_licenses.py` produces the dependency notice
 summary and full texts. This does not change the license of anything the
@@ -44,9 +48,13 @@ As inspected on 2026-10-10:
 - Earlier releases `mipsel-v1.19.31` and `mipsel-v1.19.30` were observed to
   have only the binary asset.
 - An independently downloadable upstream `LICENSE` or `NOTICE` asset was
-  **not** present in these inspected releases at the time of the audit.
+  **not** present in those releases at the time of the original audit.
+  As of the subsequent verified publication, `v1.19.32` now carries all
+  three license/notice assets; `v1.19.24`–`v1.19.31` still lack them.
   Attaching missing notices to existing releases is a deliberate,
   owner-approved action; the workflow never mutates binaries or checksums.
+
+**The live `mipsel-v1.19.32` release has now been verified to contain the binary, checksum sidecar, tagged GPL LICENSE, dependency summary and full notices.** The historical inventory below describes the earlier state at the time of audit, not the current release.
 
 The workflow retrieves the exact source-tag `LICENSE`, safely publishes
 `<binary>.LICENSE` alongside the already verified binary and SHA-256
