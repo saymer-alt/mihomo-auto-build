@@ -62,7 +62,7 @@ explains this specifically.
       on every individual GitHub Release page, for all historical versions.
 - [ ] Source download availability, public access, matching tagged trees and
       continued accessibility are verified for every release.
-- [ ] Applicable GPL/LGPL/MPL obligations (including any conditions specific to
+- [ ] Applicable GPL/LGPL/MPL obligations (see [20 module indicators](COPYLEFT-REVIEW.md), including any conditions specific to
       static linking/relinking or file-level source disclosures) have been
       reviewed against **actually incorporated code**, not simply 112 build-info modules.
 - [ ] Requirements for all historical releases' license and attribution notices are
