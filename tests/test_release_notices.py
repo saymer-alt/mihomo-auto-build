@@ -71,6 +71,17 @@ class NoticeTests(unittest.TestCase):
             self.assertEqual(api.release["assets"], before)
             self.assertFalse(any(x[0] in ("UPLOAD", "DELETE") for x in api.calls))
 
+    def test_existing_conflicting_second_notice_aborts_before_first_upload(self):
+        # If summary is missing but full notices exist and differ, fail
+        # before uploading the summary (no avoidable partial release).
+        api = Fake(side=True)
+        api.add(FULL_NAME, b"incorrect full notice")
+        original = copy.deepcopy(api.release["assets"])
+        with self.assertRaises(ME):
+            self.publish(api)
+        self.assertEqual(api.release["assets"], original)
+        self.assertFalse(any(method in ("UPLOAD", "DELETE") for method, _ in api.calls))
+
     def test_upload_failure_preserves_release_then_retries(self):
         api = Fake(side=True)
         originals = copy.deepcopy(api.release["assets"])
