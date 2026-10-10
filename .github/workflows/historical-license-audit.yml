@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MIT
 name: Historical MIPSel license audit (read-only)
 
-# One-time run when this workflow first lands on main.
-# A subsequent replay is explicit workflow_dispatch only.
+# Read-only run on the original publish and a single source-scoped re-audit
+# after classifying the verified historic ISC license variant in v1.19.25.
+# Further replays are explicit workflow_dispatch unless this file is changed.
 on:
   push:
     branches: [main]

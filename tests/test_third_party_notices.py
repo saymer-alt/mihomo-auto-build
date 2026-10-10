@@ -92,6 +92,16 @@ class ThirdPartyNotices(unittest.TestCase):
         self.assertIn("not a legal", self.summary)
         self.assertIn("must accompany any redistribution", self.summary)
 
+    def test_historical_websocket_isc_variant_from_exact_upstream_license(self):
+        license_text = (ROOT / "tests" / "fixtures" /
+                        "coder-websocket-v1.8.12-LICENSE.txt").read_text(encoding="utf-8")
+        self.assertIn("and distribute this software", license_text)
+        self.assertIn("with or without fee", license_text)
+        self.assertEqual(cl.classify(license_text), "ISC")
+        # Avoid classifying permissive-looking text without the key fee condition.
+        self.assertIsNone(cl.classify(
+            "Permission to use, copy, modify, and distribute this software."))
+
     def test_parser_rejects_notice_only_modules(self):
         # A module whose files carry only NOTICE/PATENTS (no LICENSE/COPYING)
         # must never be reported as classified.
