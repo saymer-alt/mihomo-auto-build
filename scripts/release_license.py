@@ -7,6 +7,7 @@ binary + checksum must already exist; only a missing LICENSE sidecar is added.
 import hashlib
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 from urllib.request import urlopen
@@ -110,7 +111,6 @@ def main():
     if len(sys.argv) != 3:
         raise assets.MetadataError("Expected release tag and binary name")
     import os
-    import subprocess
     tag, binary = sys.argv[1:]
     content = download_tagged_license(tag)
     repository = os.environ.get("GITHUB_REPOSITORY")
