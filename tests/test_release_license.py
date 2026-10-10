@@ -3,6 +3,7 @@
 import hashlib
 import io
 import os
+import subprocess
 from pathlib import Path
 import sys
 import unittest
@@ -97,6 +98,16 @@ class LicenseTests(unittest.TestCase):
 
 
 class LicenseEdgeCases(unittest.TestCase):
+    def test_cli_exception_handler_handles_missing_arguments(self):
+        # Invokes __main__: importing subprocess only inside main() would
+        # cause NameError while resolving the except tuple on this path.
+        script = Path(__file__).resolve().parents[1] / "scripts" / "release_license.py"
+        result = subprocess.run([sys.executable, str(script)],
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Expected release tag and binary name", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_oversized_upstream_license_refused(self):
         oversized = MIT_FIXTURE + b"x" * 32768
         with self.assertRaisesRegex(lic.assets.MetadataError, "length"):
