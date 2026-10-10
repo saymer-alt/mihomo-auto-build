@@ -82,7 +82,7 @@ def compare_snapshots(before, after, version):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("before", "after"))
+    parser.add_argument("stage", choices=("before", "check", "after"))
     parser.add_argument("--version", required=True)
     parser.add_argument("--release-json", required=True)
     parser.add_argument("--binary", required=True)
@@ -100,9 +100,14 @@ def main():
               f"existing_assets={len(release['assets'])}")
     else:
         previous = json.loads(Path(args.snapshot).read_text())
-        compare_snapshots(previous, release, version)
-        print(f"VERIFIED {release['tag']} release_id={release['release_id']} "
-              "existing assets unchanged, expected notices present")
+        if args.stage == "check":
+            if previous != release:
+                raise BackfillError("Release changed after initial snapshot; no mutation allowed")
+            print(f"CHECK {release['tag']}: all original asset metadata unchanged")
+        else:
+            compare_snapshots(previous, release, version)
+            print(f"VERIFIED {release['tag']} release_id={release['release_id']} "
+                  "existing assets unchanged, expected notices present")
 
 
 if __name__ == "__main__":
