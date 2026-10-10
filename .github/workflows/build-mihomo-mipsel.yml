@@ -90,3 +90,12 @@ jobs:
           TAG_NAME: ${{ steps.check-release.outputs.tag_name }}
           BIN_NAME: ${{ steps.check-release.outputs.bin_name }}
         run: python3 scripts/release_assets.py publish "$TAG_NAME" "$BIN_NAME"
+
+      - name: Verify and publish exact tagged upstream MIT LICENSE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: |
+          set -euo pipefail
+          VER_CLEAN="${VERSION#v}"
+          python3 scripts/release_license.py "mipsel-$VERSION" "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}"

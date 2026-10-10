@@ -12,7 +12,7 @@ A scheduled workflow ([`build-mihomo-mipsel.yml`](.github/workflows/build-mihomo
 2. Inspects the existing publication state and builds **only what is missing or invalid** — a healthy released binary is never overwritten (`scripts/release_assets.py` publication state machine).
 3. Builds from the upstream source tag:
    `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`, with `-trimpath -ldflags "-s -w"` and a stamped version string.
-4. Publishes release assets on a `mipsel-vX.Y.Z` tag and verifies SHA-256 digests before and after upload.
+4. Publishes release assets on a `mipsel-vX.Y.Z` tag, verifies SHA-256 digests, and ensures the matching upstream Mihomo MIT LICENSE is attached. The notice step never replaces a healthy binary or checksum.
 
 ## Releases and assets
 
@@ -20,6 +20,7 @@ Each upstream version gets a release tagged `mipsel-vX.Y.Z` with:
 
 - `mihomo-linux-mipsel-softfloat-vX.Y.Z` — the binary;
 - `mihomo-linux-mipsel-softfloat-vX.Y.Z.sha256` — checksum to verify the download.
+- `mihomo-linux-mipsel-softfloat-vX.Y.Z.LICENSE` — exact upstream Mihomo MIT license text retrieved from the matching `vX.Y.Z` source tag (for releases published by the updated workflow).
 
 Verify a download:
 
@@ -67,7 +68,8 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
 ## Development
 
 - `scripts/release_assets.py` — publication state machine (plan/publish) used by the build workflow.
-- `tests/test_release_assets.py`, `tests/test_starter_recovery.py` — offline tests for the publication logic.
+- `scripts/release_license.py` — independent, fail-closed notice publication/verification; reads `LICENSE` from the exact tagged upstream source. It does not overwrite or delete any existing release asset.
+- `tests/test_release_assets.py`, `tests/test_starter_recovery.py`, `tests/test_release_license.py` — offline tests for publication, recovery, and license handling.
 - `.github/workflows/test-release-readiness.yml` — runs the tests on push.
 
 Run the tests locally (same command as CI):
@@ -78,7 +80,7 @@ python3 -m unittest discover -s tests -p "test_*.py"
 
 ## Licensing and attribution
 
-This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The original build workflows, helper scripts and tests in this repository are licensed **MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The upstream Mihomo MIT grant is a separate license from its own copyright holder. See [LICENSING.md](LICENSING.md) for separate licensing scopes and the planned release-notice check.
+This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The original build workflows, helper scripts and tests in this repository are licensed **MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The upstream Mihomo MIT grant is a separate license from its own copyright holder. See [LICENSING.md](LICENSING.md) for the separate licensing scopes. The workflow now attaches and validates the matching upstream Mihomo MIT notice. Third-party Go dependency notices are a **separate follow-up review** and must not be treated as audited or complete merely because this notice exists.
 
 ## Related projects
 
