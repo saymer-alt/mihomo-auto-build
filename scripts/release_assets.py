@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """MIPSel publication state machine. Never overwrite a healthy binary."""
 import hashlib
 import json

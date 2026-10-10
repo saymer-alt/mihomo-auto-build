@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Server-side upload leftovers, using the real release state machine."""
 import copy
 import hashlib
