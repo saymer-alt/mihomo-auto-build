@@ -30,7 +30,7 @@ Verify a download:
 sha256sum --check mihomo-linux-mipsel-softfloat-vX.Y.Z.sha256
 ```
 
-Current releases: [Releases](https://github.com/saymer-alt/mihomo-auto-build/releases).
+Current releases: [Releases](https://github.com/saymer-alt/mihomo-auto-build/releases). **Source availability:** [version-specific upstream source downloads, build scripts and GPLv3 §6(d) review checklist](SOURCE-AVAILABILITY.md). For a new version, the release description now includes pinned source and build links; older release pages still need an explicit audit.
 
 ## Is my device supported?
 
@@ -64,7 +64,7 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
 ## Scope and limitations
 
 - **MIPSel softfloat only.** Other architectures are covered by official [MetaCubeX/mihomo releases](https://github.com/MetaCubeX/mihomo/releases) or the Entware package feed in [`saymer-alt/entware-go`](https://github.com/saymer-alt/entware-go) (release `latest`).
-- Builds are produced by CI from unmodified upstream source tags; no patches are applied.
+- Builds are produced by CI from unmodified upstream source tags; no patches are applied. New releases link to the exact upstream source tag and immutable build-script revision. That pointer alone is **not** an audited complete corresponding-source bundle.
 - Release publication is deliberately conservative: partial or failed uploads are replaced only after validation, never blindly (`--clobber` is not used).
 
 ## Development
@@ -72,7 +72,7 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
 - `scripts/release_assets.py` — publication state machine (plan/publish) used by the build workflow.
 - `scripts/release_license.py` — independent, fail-closed tagged upstream GPL-3.0 license asset publication/verification.
 - `scripts/collect_upstream_licenses.py` and `scripts/release_notices.py` — per-version dependency license collection and verification of the two notice assets; unknown or conflicting notices stop publication.
-- `tests/test_release_assets.py`, `tests/test_starter_recovery.py`, `tests/test_release_license.py`, `tests/test_release_notices.py`, `tests/test_third_party_notices.py` — offline tests for publication, recovery, license handling and notice integrity.
+- `tests/test_release_assets.py`, `tests/test_starter_recovery.py`, `tests/test_release_license.py`, `tests/test_release_notices.py`, `tests/test_third_party_notices.py`, `tests/test_source_availability.py` — offline tests for publication, recovery, licensing, notice integrity and future release source pointers.
 - `.github/workflows/test-release-readiness.yml` — runs the tests on push.
 
 Run the tests locally (same command as CI):
