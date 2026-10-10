@@ -99,3 +99,21 @@ jobs:
           set -euo pipefail
           VER_CLEAN="${VERSION#v}"
           python3 scripts/release_license.py "mipsel-$VERSION" "mihomo-linux-mipsel-softfloat-v${VER_CLEAN}"
+
+      - name: Publish third-party license summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.latest }}
+        run: |
+          set -euo pipefail
+          SUMMARY="THIRD_PARTY_LICENSES-v${VERSION#v}.txt"
+          if [[ ! -f "$SUMMARY" ]]; then
+            echo "::error::$SUMMARY is missing. Run scripts/collect_upstream_licenses.py for v${VERSION#v} (go + module proxy required) and commit the summary before this release publishes."
+            exit 1
+          fi
+          grep -q "for Mihomo $VERSION" "$SUMMARY" || { echo "::error::$SUMMARY does not cover $VERSION"; exit 1; }
+          if gh release view "mipsel-$VERSION" --json assets -q '.assets[].name' | grep -Fxq "$SUMMARY"; then
+            echo "Third-party license summary already attached"
+          else
+            gh release upload "mipsel-$VERSION" "$SUMMARY"
+          fi
