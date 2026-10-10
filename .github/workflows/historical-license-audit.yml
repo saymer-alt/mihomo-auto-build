@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: MIT
+name: Historical MIPSel license audit (read-only)
+
+# One-time run when this workflow first lands on main.
+# A subsequent replay is explicit workflow_dispatch only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/historical-license-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: historical-mipsel-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Historical source/license audit v${{ matrix.version }}
+    if: github.repository == 'saymer-alt/mihomo-auto-build'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        version:
+          - '1.19.31'
+          - '1.19.30'
+          - '1.19.29'
+          - '1.19.28'
+          - '1.19.27'
+          - '1.19.26'
+          - '1.19.25'
+          - '1.19.24'
+    permissions:
+      contents: read
+    env:
+      HIST_VERSION: ${{ matrix.version }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Fetch and independently verify historical binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$HIST_VERSION"
+          TAG="mipsel-v$VERSION"
+          BIN="mihomo-linux-mipsel-softfloat-v$VERSION"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > before.json
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p "$BIN" -O "./$BIN"
+          python3 scripts/historical_backfill.py before --version "$VERSION" \
+            --release-json before.json --binary "./$BIN"
+          python3 - "$VERSION" "$BIN" <<'PY'
+          import sys
+          from scripts.collect_upstream_licenses import main_version
+          version, path = sys.argv[1:]
+          if main_version(path) != "v" + version:
+              raise SystemExit("Released binary build-info version mismatch")
+          PY
+
+      - name: Collect version-specific copyright notices without publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$HIST_VERSION"
+          BIN="mihomo-linux-mipsel-softfloat-v$VERSION"
+          python3 scripts/collect_upstream_licenses.py --binary "./$BIN" \
+            --summary "THIRD_PARTY_LICENSES-v$VERSION.txt" \
+            --full "THIRD_PARTY_NOTICES-v$VERSION.txt" \
+            --report "historic-license-report-v$VERSION.json"
+          python3 - "$VERSION" <<'PY'
+          import sys
+          from scripts.release_license import download_tagged_license
+          contents = download_tagged_license("mipsel-v" + sys.argv[1])
+          if b"GNU GENERAL PUBLIC LICENSE" not in contents:
+              raise SystemExit("Exact upstream tag lacks expected GPL license")
+          PY
+
+      - name: Confirm no release mutations and only checksum/complete paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$HIST_VERSION"
+          TAG="mipsel-v$VERSION"
+          BIN="mihomo-linux-mipsel-softfloat-v$VERSION"
+          python3 scripts/release_assets.py plan "$TAG" "$BIN"
+          python3 - <<'PY'
+          import json
+          plan = json.load(open("release-plan.json", encoding="utf-8"))
+          if plan["mode"] not in ("checksum", "complete"):
+              raise SystemExit("Unexpected release mutation mode")
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > after.json
+          python3 scripts/historical_backfill.py check --version "$VERSION" \
+            --release-json after.json --binary "./$BIN"
+          {
+            echo "### Historical v$VERSION: read-only preflight PASS"
+            echo ""
+            echo "Binary identity/digest, build-info version, tagged GPL, and"
+            echo "version-specific license notice generation validated."
+            echo "No release assets were uploaded or modified."
+          } >> "$GITHUB_STEP_SUMMARY"
