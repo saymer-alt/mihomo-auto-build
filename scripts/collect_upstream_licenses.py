@@ -6,11 +6,20 @@ build information embedded in the binary (go version -m), sources come from
 the module proxy at the pinned versions, and licenses are read from the real
 files inside those sources - never guessed from names.
 
+Scope and limits (deliberately explicit):
+  * The build info lists the module *graph* of the build. The subset of that
+    graph whose code is actually linked is smaller; this report deliberately
+    over-includes so obligations are reviewed conservatively.
+  * Classification is phrase-based heuristics over real license files. It is
+    evidence for human review, **not a legal conclusion**. Copyleft findings
+    (GPL/LGPL/MPL) are escalations, never a completed distribution strategy.
+
 Outputs:
   summary file  - compact module -> license table (reviewable, committed)
-  full notices  - complete license texts, shipped as a release asset
+  full notices  - complete license texts, shipped alongside the binary
 
-Fail-closed: an unresolvable or ambiguous license exits non-zero.
+Fail-closed: a module without at least one recognized LICENSE/COPYING file,
+an unparseable response, or an unreadable file exits non-zero.
 Requires: go on PATH and network access to the module proxy.
 
 Usage:
@@ -44,12 +53,17 @@ def run_go(args):
 
 
 def parse_build_info(text):
-    """Parse `go version -m` output into {import_path: [source_path, version]}.
+    """Parse `go version -m` output.
 
-    A replace directive changes the source location but not the import path.
+    Returns (main, modules): `main` is (import_path, version) of the built
+    module; `modules` maps import_path -> [source_path, version]. A replace
+    directive changes the source location but not the import path.
     """
-    modules, current = {}, None
+    main, modules, current = None, {}, None
     for line in text.splitlines():
+        mod = re.match(r"\tmod\t(\S+)\t(\S+)", line)
+        if mod:
+            main = (mod.group(1), mod.group(2))
         dep = re.match(r"\tdep\t(\S+)\t(\S+)", line)
         if dep:
             current = dep.group(1)
@@ -57,16 +71,15 @@ def parse_build_info(text):
         repl = re.match(r"\t=>\t(\S+)\t(\S+)", line)
         if repl and current:
             modules[current] = [repl.group(1), repl.group(2)]
-    return modules
+    return main, modules
 
 
 def build_modules(binary):
-    """Effective module list from the binary's embedded build information."""
     out = run_go(["version", "-m", str(binary)])
-    modules = parse_build_info(out)
-    if not modules:
+    main, modules = parse_build_info(out)
+    if not modules or main is None:
         raise CollectError("No dependency build info found in the binary")
-    return modules
+    return main, modules
 
 
 def classify(text):
@@ -105,71 +118,94 @@ def classify(text):
     return None
 
 
-def mod_dir(mod, ver):
+def mod_dir(source_path, ver):
     cache = run_go(["env", "GOMODCACHE"]).strip()
-    escaped = re.sub(r"([A-Z])", lambda m: "!" + m.group(1).lower(), mod)
-    for candidate in (Path(cache) / f"{mod}@{ver}", Path(cache) / f"{escaped}@{ver}"):
+    escaped = re.sub(r"([A-Z])", lambda m: "!" + m.group(1).lower(), source_path)
+    for candidate in (Path(cache) / f"{source_path}@{ver}", Path(cache) / f"{escaped}@{ver}"):
         if candidate.is_dir():
             return candidate
     return None
 
 
-def collect_module(import_path, source_path, ver):
+def license_files(directory):
+    """Root-level license files first; otherwise one subdirectory level,
+    complete - never an arbitrary single file from an unknown depth."""
+    root, sub = [], []
+    for entry in sorted(directory.iterdir()):
+        if entry.is_file() and LICENSE_RE.match(entry.name):
+            root.append(entry)
+    if root:
+        return root
+    for child in sorted(directory.iterdir()):
+        if child.is_dir() and child.name not in (".git", "testdata", "examples", "docs"):
+            sub.extend(e for e in sorted(child.iterdir())
+                       if e.is_file() and LICENSE_RE.match(e.name))
+    return sub
+
+
+def collect_module(import_path, source_path, ver, label=None):
     run_go(["mod", "download", f"{source_path}@{ver}"])
     d = mod_dir(source_path, ver)
+    key = label or f"{import_path}@{ver}"
     if d is None:
-        return {"status": "missing-source", "module": import_path, "version": ver,
-                "source": source_path}
-    files = []
-    for root, dirs, names in os.walk(d):
-        dirs[:] = [x for x in dirs if x not in (".git", "testdata", "examples", "docs")]
-        files.extend(os.path.join(root, n) for n in names if LICENSE_RE.match(n))
-        if files and root != str(d):
-            break
-    top = [f for f in files if os.path.dirname(f) == str(d)] or files[:1]
-    if not top:
-        return {"status": "no-license-file", "module": import_path, "version": ver,
-                "source": source_path}
+        return {"status": "missing-source", "key": key, "module": import_path,
+                "version": ver, "source": source_path}
+    files = license_files(d)
+    if not files:
+        return {"status": "no-license-file", "key": key, "module": import_path,
+                "version": ver, "source": source_path}
     licenses, texts, copyright_line = set(), {}, None
-    for f in top:
+    for f in files:
         try:
-            raw = Path(f).read_bytes()
-            text = raw.decode("utf-8")
+            text = f.read_bytes().decode("utf-8")
         except (OSError, UnicodeDecodeError) as exc:
-            return {"status": "unreadable-license", "module": import_path, "version": ver,
-                    "source": source_path, "file": os.path.basename(f),
+            return {"status": "unreadable-license", "key": key, "module": import_path,
+                    "version": ver, "source": source_path, "file": f.name,
                     "error": str(exc)[:200]}
-        name = os.path.basename(f)
-        texts[name] = text
-        if LICENSE_ONLY_RE.match(name):
+        texts[f.name] = text
+        if LICENSE_ONLY_RE.match(f.name):
             kind = classify(text)
             if kind is None:
-                return {"status": "unrecognized-license", "module": import_path,
-                        "version": ver, "source": source_path, "file": name}
+                return {"status": "unrecognized-license", "key": key,
+                        "module": import_path, "version": ver, "source": source_path,
+                        "file": f.name}
             licenses.add(kind)
         if copyright_line is None:
             m = re.search(r"^(?:Copyright|©|SPDX-FileCopyrightText:).*$", text, re.M)
             if m:
                 copyright_line = m.group(0).strip()
-    return {"status": "ok", "module": import_path, "version": ver, "source": source_path,
-            "license": sorted(licenses), "files": sorted(texts),
-            "copyright": copyright_line, "texts": texts}
+    if not licenses:
+        # Only NOTICE/COPYRIGHT/PATENTS companions were found: the module's
+        # actual license is undetermined. Never report success for this.
+        return {"status": "no-classified-license", "key": key, "module": import_path,
+                "version": ver, "source": source_path, "files": sorted(texts)}
+    return {"status": "ok", "key": key, "module": import_path, "version": ver,
+            "source": source_path, "license": sorted(licenses),
+            "files": sorted(texts), "copyright": copyright_line, "texts": texts}
 
 
 def collect_all(binary):
-    modules = build_modules(binary)
+    """Collect the upstream main module plus every dependency module."""
+    main, modules = build_modules(binary)
     results = {}
+    main_path, main_ver = main
+    results[f"{main_path}@{main_ver}"] = collect_module(
+        main_path, main_path, main_ver, label=f"{main_path}@{main_ver} [upstream main module]")
     for import_path, (source_path, ver) in sorted(modules.items()):
         results[f"{import_path}@{ver}"] = collect_module(import_path, source_path, ver)
     return results
 
 
 def main_version(binary):
-    out = run_go(["version", "-m", str(binary)])
-    m = re.search(r"^\tmod\t\S+\t(\S+)", out, re.M)
-    if not m:
-        raise CollectError("Binary lacks module build info; cannot determine version")
-    return m.group(1)
+    return build_modules(binary)[0][1]
+
+
+def key_line(r):
+    """Rendered module key; replaced modules carry their source identity."""
+    line = r["key"]
+    if r["source"] != r["module"]:
+        line += f" [source: {r['source']}@{r['version']}]"
+    return line
 
 
 def render_summary(version, results):
@@ -178,42 +214,50 @@ def render_summary(version, results):
         "Generated from the released binary's Go build information; licenses",
         "were read from the real upstream files at the pinned module versions.",
         "",
-        "unique-counts are not applicable here; one line per effective module.",
+        "This table is heuristic evidence for human review, not a legal",
+        "conclusion; it lists the build module graph, which over-includes the",
+        "actually linked code on purpose. Copyleft findings are escalations.",
         "",
         "module@version | license | files | copyright",
     ]
     unresolved = []
-    for key, r in results.items():
+    for r in results.values():
         if r["status"] != "ok":
-            unresolved.append(key)
+            unresolved.append(r)
             continue
         lines.append(" | ".join((
-            key, "+".join(r["license"]), ",".join(r["files"]), r["copyright"] or "-")))
-    for key in sorted(unresolved):
-        r = results[key]
-        lines.append(f"UNRESOLVED {key} | {r['status']}")
+            key_line(r), "+".join(r["license"]), ",".join(r["files"]),
+            r["copyright"] or "-")))
+    for r in sorted(unresolved, key=lambda x: x["key"]):
+        lines.append(f"UNRESOLVED {key_line(r)} | {r['status']}"
+                     + (f" | {r.get('error', '')}" if r.get("error") else ""))
     lines.append("")
-    copyleft = sorted(k for k, r in results.items() if r["status"] == "ok"
-                      and any(l.startswith(COPYLEFT) for l in r["license"]))
-    lines.append(f"copyleft modules (GPL/LGPL/MPL): {len(copyleft)}")
-    for key in copyleft:
-        lines.append(f"  {key} -> {'+'.join(results[key]['license'])}")
+    copyleft = sorted((r for r in results.values() if r["status"] == "ok"
+                       and any(l.startswith(COPYLEFT) for l in r["license"])),
+                      key=lambda r: r["key"])
+    lines.append(f"copyleft indicators (GPL/LGPL/MPL), escalate for legal review: {len(copyleft)}")
+    for r in copyleft:
+        lines.append(f"  {key_line(r)} -> {'+'.join(r['license'])}")
     lines.append("")
-    lines.append("The statically linked binary redistributes these components.")
-    lines.append("Full license texts ship as THIRD_PARTY_NOTICES-<version>.txt.")
-    lines.append("Source code for every module is available at its module path")
-    lines.append("and version through the Go module proxy (proxy.golang.org).")
-    return "\n".join(lines) + "\n", unresolved
+    lines.append("Full license texts are produced as THIRD_PARTY_NOTICES-<version>.txt")
+    lines.append("and must accompany any redistribution of the binary. Source code")
+    lines.append("for every module is available at its module path and version")
+    lines.append("through the Go module proxy (proxy.golang.org); the upstream")
+    lines.append("corresponding source for the binary is the tagged upstream tree")
+    lines.append("plus this repository's build scripts.")
+    return "\n".join(lines) + "\n", [r["key"] for r in unresolved]
 
 
 def render_full(version, results):
     parts = [
         f"THIRD-PARTY SOFTWARE NOTICES for Mihomo {version} (MIPSel rebuild)",
         "",
-        "This document contains license notices for the Go modules whose",
-        "object code is statically linked into the distributed binary.",
-        "Module identities and versions come from the binary's build info;",
-        "texts are verbatim copies of the upstream files at those versions.",
+        "This document contains license texts for the upstream Mihomo module",
+        "and for the Go module graph of the released binary. It over-includes",
+        "the actually linked code deliberately; classification is heuristic",
+        "evidence for human review, not a legal conclusion. Module identities",
+        "and versions come from the binary's build info; texts are verbatim",
+        "copies of the upstream files at those versions.",
         "",
         "=" * 78, "",
     ]
@@ -221,8 +265,8 @@ def render_full(version, results):
         r = results[key]
         if r["status"] != "ok":
             continue
-        parts.append(f"--- {key} | license: {'+'.join(r['license'])} "
-                     f"| files: {','.join(r['files'])} ---")
+        header = f"--- {key_line(r)} | license: {'+'.join(r['license'])} | files: {','.join(r['files'])}"
+        parts.append(header)
         for name in sorted(r["texts"]):
             parts.append(r["texts"][name].rstrip("\n"))
         parts.append("")
@@ -236,16 +280,24 @@ def main():
     parser.add_argument("--binary", required=True, help="released MIPSel binary")
     parser.add_argument("--summary", required=True)
     parser.add_argument("--full", required=True)
+    parser.add_argument("--report", help="optional JSON report path")
     args = parser.parse_args()
     binary = Path(args.binary)
     if not binary.is_file() or binary.stat().st_size == 0:
         raise CollectError("Binary is missing or empty")
     results = collect_all(binary)
-    unresolved = [k for k, r in results.items() if r["status"] != "ok"]
+    unresolved = [r["key"] for r in results.values() if r["status"] != "ok"]
     version = main_version(binary)
     summary, _ = render_summary(version, results)
     Path(args.summary).write_text(summary, encoding="utf-8")
     Path(args.full).write_text(render_full(version, results), encoding="utf-8")
+    if args.report:
+        slim = {k: {f: v.get(f) for f in ("status", "module", "version", "source",
+                                          "license", "files", "copyright")}
+                for k, v in results.items()}
+        Path(args.report).write_text(json.dumps(
+            {"version": version, "modules": slim, "unresolved": unresolved},
+            indent=1), encoding="utf-8")
     print(f"version={version} modules={len(results)} unresolved={len(unresolved)}")
     for key in sorted(unresolved):
         print(f"UNRESOLVED {key} status={results[key]['status']}", file=sys.stderr)

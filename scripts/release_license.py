@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Attach the exact tagged upstream Mihomo MIT license without changing binaries.
+"""Attach the exact tagged upstream Mihomo GPL-3.0 license without changing binaries.
 
 Runs after the existing fail-closed release_assets.py publish step. A healthy
 binary + checksum must already exist; only a missing LICENSE sidecar is added.
@@ -14,20 +14,24 @@ from urllib.request import urlopen
 
 import release_assets as assets
 
+# The canonical FSF GPL-3.0 text is ~35 KB; the cap leaves headroom but
+# still rejects anything absurd before phrase validation runs.
+LICENSE_MAX_BYTES = 65536
+
 
 def license_name(binary):
     return binary + ".LICENSE"
 
 
 def validate_license(content):
-    if not isinstance(content, bytes) or not 200 <= len(content) <= 32768:
+    if not isinstance(content, bytes) or not 200 <= len(content) <= LICENSE_MAX_BYTES:
         raise assets.MetadataError("Invalid upstream LICENSE length")
     try:
         text = content.decode("utf-8")
     except UnicodeDecodeError as e:
         raise assets.MetadataError("Upstream LICENSE must be UTF-8") from e
-    for phrase in ("Copyright 2023 KT", "Permission is hereby granted",
-                   "THE SOFTWARE IS PROVIDED"):
+    for phrase in ("GNU GENERAL PUBLIC LICENSE", "Version 3, 29 June 2007",
+                   "Free Software Foundation, Inc. <https://fsf.org/>"):
         if phrase not in text:
             raise assets.MetadataError("Unexpected upstream LICENSE: human review required")
     return content
@@ -40,7 +44,7 @@ def download_tagged_license(tag):
     url = f"https://raw.githubusercontent.com/MetaCubeX/mihomo/{upstream}/LICENSE"
     try:
         with urlopen(url, timeout=30) as response:
-            content = response.read(32769)
+            content = response.read(LICENSE_MAX_BYTES + 1)
     except Exception as e:
         raise assets.MetadataError("Unable to read tagged upstream LICENSE") from e
     return validate_license(content)
@@ -117,7 +121,7 @@ def main():
     if not repository:
         raise assets.MetadataError("GITHUB_REPOSITORY is not set; refusing to guess")
     changed = ensure_license(assets.GitHub(), repository, tag, binary, content)
-    print("Upstream MIT LICENSE verified" + (" and uploaded" if changed else "; already present"))
+    print("Upstream GPL-3.0 LICENSE verified" + (" and uploaded" if changed else "; already present"))
 
 
 if __name__ == "__main__":
