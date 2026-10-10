@@ -12,7 +12,7 @@ A scheduled workflow ([`build-mihomo-mipsel.yml`](.github/workflows/build-mihomo
 2. Inspects the existing publication state and builds **only what is missing or invalid** — a healthy released binary is never overwritten (`scripts/release_assets.py` publication state machine).
 3. Builds from the upstream source tag:
    `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat`, with `-trimpath -ldflags "-s -w"` and a stamped version string.
-4. Publishes release assets on a `mipsel-vX.Y.Z` tag, verifies SHA-256 digests, and ensures the matching upstream Mihomo MIT LICENSE is attached. The notice step never replaces a healthy binary or checksum.
+4. Publishes release assets on a `mipsel-vX.Y.Z` tag, verifies SHA-256 digests, and ensures the matching upstream Mihomo GPL-3.0 LICENSE is attached. The notice step never replaces a healthy binary or checksum.
 
 ## Releases and assets
 
@@ -20,7 +20,9 @@ Each upstream version gets a release tagged `mipsel-vX.Y.Z` with:
 
 - `mihomo-linux-mipsel-softfloat-vX.Y.Z` — the binary;
 - `mihomo-linux-mipsel-softfloat-vX.Y.Z.sha256` — checksum to verify the download.
-- `mihomo-linux-mipsel-softfloat-vX.Y.Z.LICENSE` — exact upstream Mihomo MIT license text retrieved from the matching `vX.Y.Z` source tag (for releases published by the updated workflow).
+- `mihomo-linux-mipsel-softfloat-vX.Y.Z.LICENSE` — exact upstream Mihomo GPL-3.0 license text retrieved from the matching `vX.Y.Z` source tag (for releases published by the updated workflow).
+- `THIRD_PARTY_LICENSES-vX.Y.Z.txt` — dependency audit summary with licensing indicators; not a legal compliance certificate.
+- `THIRD_PARTY_NOTICES-vX.Y.Z.txt` — full collected upstream and dependency notice texts, generated from the exact built binary's Go module information.
 
 Verify a download:
 
@@ -68,8 +70,9 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
 ## Development
 
 - `scripts/release_assets.py` — publication state machine (plan/publish) used by the build workflow.
-- `scripts/release_license.py` — independent, fail-closed notice publication/verification; reads `LICENSE` from the exact tagged upstream source. It does not overwrite or delete any existing release asset.
-- `tests/test_release_assets.py`, `tests/test_starter_recovery.py`, `tests/test_release_license.py` — offline tests for publication, recovery, and license handling.
+- `scripts/release_license.py` — independent, fail-closed tagged upstream GPL-3.0 license asset publication/verification.
+- `scripts/collect_upstream_licenses.py` and `scripts/release_notices.py` — per-version dependency license collection and verification of the two notice assets; unknown or conflicting notices stop publication.
+- `tests/test_release_assets.py`, `tests/test_starter_recovery.py`, `tests/test_release_license.py`, `tests/test_release_notices.py`, `tests/test_third_party_notices.py` — offline tests for publication, recovery, license handling and notice integrity.
 - `.github/workflows/test-release-readiness.yml` — runs the tests on push.
 
 Run the tests locally (same command as CI):
@@ -80,7 +83,7 @@ python3 -m unittest discover -s tests -p "test_*.py"
 
 ## Licensing and attribution
 
-This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The original build workflows, helper scripts and tests in this repository are licensed **MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The upstream Mihomo MIT grant is a separate license from its own copyright holder. See [LICENSING.md](LICENSING.md) for the separate licensing scopes. The workflow now attaches and validates the matching upstream Mihomo MIT notice. Third-party Go dependency notices are a **separate follow-up review** and must not be treated as audited or complete merely because this notice exists.
+This repository builds upstream [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) from tagged source. **Upstream Mihomo is licensed under GNU GPL-3.0**, as verified for the published `v1.19.24`–`v1.19.32` tags; see the exact tagged [upstream LICENSE](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/LICENSE) and [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). **The original builder scripts and workflows authored by saymer-alt are separately licensed under MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The release workflow is designed to attach the tagged upstream GPL-3.0 text and a per-version third-party license summary and full collected notice texts. Automatic classification is a provenance aid, **not proof of license compatibility or fulfillment of every GPL source-distribution obligation**. See [LICENSING.md](LICENSING.md) and [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
 
 ## Related projects
 
