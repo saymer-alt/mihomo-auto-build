@@ -15,6 +15,13 @@ Thanks for your interest in **mihomo-auto-build** (MIPSel softfloat CI builder o
 - Do not propose overwriting known-good releases, bypassing checksum checks, or changing publication safeguards without a validated recovery procedure.
 - Never submit authentication tokens, private mirrors, real credentials or private subscription data.
 
+## Licensing contributions
+
+- The maintainer's original builder code is licensed under **MIT**; see [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+- Only contribute code or documentation for which you hold rights or have appropriate permission to submit under the applicable license. Keep third-party copyright and license notices.
+- The compiled Mihomo binary is upstream software governed by its own MIT notice and dependency licenses; contributions must not claim the builder's copyright over that code.
+- If provenance is uncertain, discuss it in an Issue before contributing copied material.
+
 ## Pull request checks
 
 - State what changed, why, how it was validated, and what remains unverified.
