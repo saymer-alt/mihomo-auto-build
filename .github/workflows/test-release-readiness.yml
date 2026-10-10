@@ -9,6 +9,7 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - '.github/workflows/build-mihomo-mipsel.yml'
+      - '.github/workflows/historical-license-audit.yml'
       - '.github/workflows/test-release-readiness.yml'
   workflow_dispatch:
 
