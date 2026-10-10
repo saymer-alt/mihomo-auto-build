@@ -98,7 +98,13 @@ def classify(text):
                 or "may not be used to endorse" in low):
             return "BSD-3-Clause"
         return "BSD-2-Clause"
-    if "permission to use, copy, modify, and/or distribute this software" in low:
+    # Standard ISC and a documented historical variant (coder/websocket v1.8.12)
+    # use "and/or distribute" vs "and distribute"; both require fee-free
+    # permission and retention of the original copyright notice.
+    if ("with or without fee" in low and "copyright notice" in low and
+            any(phrase in low for phrase in (
+                "permission to use, copy, modify, and/or distribute this software",
+                "permission to use, copy, modify, and distribute this software"))):
         return "ISC"
     if "gnu lesser general public license" in low:
         return "LGPL-3.0" if "version 3" in low else "LGPL-2.1"
