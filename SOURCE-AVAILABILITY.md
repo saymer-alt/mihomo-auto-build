@@ -31,8 +31,8 @@ See [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8) for ope
 
 ## Exact upstream version / source map
 
-| Binary release | Corresponding upstream source entry points | Archive note |
-| --- | --- | --- |
+| Binary release | Download | Corresponding upstream source entry points | Archive note |
+| --- | --- | --- | --- |
 | `mipsel-v1.19.24` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.24) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.24) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.24.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.sum) | Only binary observed; no SHA-256 or license notice assets |
 | `mipsel-v1.19.25` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.25) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.25) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.25.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.sum) | Only binary observed; no SHA-256 or license notice assets |
 | `mipsel-v1.19.26` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.26) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.26) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.26.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.sum) | Only binary observed; no SHA-256 or license notice assets |
