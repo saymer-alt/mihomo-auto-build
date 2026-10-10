@@ -76,6 +76,10 @@ Run the tests locally (same command as CI):
 python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
+## Licensing and attribution
+
+This repository builds unmodified tagged source from [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo), which is licensed under MIT; see [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). The local build workflows and helper scripts do **not** yet have a selected repository-wide license. See [LICENSING.md](LICENSING.md) for separate licensing scopes and the planned release-notice check.
+
 ## Related projects
 
 - [`saymer-alt/keenetic-auto-setup`](https://github.com/saymer-alt/keenetic-auto-setup) — automated Mihomo deployment on Keenetic routers with Entware.
