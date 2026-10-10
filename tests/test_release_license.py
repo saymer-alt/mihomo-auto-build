@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT
 """Offline verification of upstream license publication and fail-closed guards."""
+import hashlib
 import io
+import os
 from pathlib import Path
 import sys
 import unittest
@@ -8,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import release_license as lic
-from test_release_assets import BIN, TAG, DATA, Fake
+from test_release_assets import BIN, TAG, DATA, Fake, m
 
 
 MIT_FIXTURE = (b"Copyright 2023 KT\nPermission is hereby granted\n"
@@ -92,6 +94,77 @@ class LicenseTests(unittest.TestCase):
         before = api.release["assets"][-1].copy()
         self.assertTrue(lic.ensure_license(api, "owner/repo", TAG, BIN, MIT_FIXTURE))
         self.assertIn(before, api.release["assets"])
+
+
+class LicenseEdgeCases(unittest.TestCase):
+    def test_oversized_upstream_license_refused(self):
+        oversized = MIT_FIXTURE + b"x" * 32768
+        with self.assertRaisesRegex(lic.assets.MetadataError, "length"):
+            lic.validate_license(oversized)
+        # Exactly at the documented limit stays acceptable.
+        self.assertEqual(lic.validate_license(MIT_FIXTURE[:32768]), MIT_FIXTURE[:32768])
+
+    def test_non_utf8_upstream_license_refused(self):
+        with self.assertRaisesRegex(lic.assets.MetadataError, "UTF-8"):
+            lic.validate_license(MIT_FIXTURE.replace(b"KT", b"KT\xff\xfe"))
+
+    def test_notice_asset_without_digest_fails_closed(self):
+        api = Fake(side=True)
+        api.add(BIN + ".LICENSE", MIT_FIXTURE)
+        api.release["assets"][-1].pop("digest")
+        before = list(api.release["assets"])
+        with self.assertRaisesRegex(lic.assets.MetadataError, "digest"):
+            lic.ensure_license(api, "owner/repo", TAG, BIN, MIT_FIXTURE)
+        self.assertEqual(before, api.release["assets"])
+
+    def test_concurrent_notice_during_upload_conflicts_then_idempotent(self):
+        api = Fake(side=True)
+        original = list(api.release["assets"])
+
+        def upload(tag, path):
+            # Another actor attaches the same-named notice right before ours.
+            api.content[999] = MIT_FIXTURE
+            api.release["assets"].append({"id": 999, "name": path.name, "state": "uploaded",
+                                          "size": len(MIT_FIXTURE),
+                                          "digest": "sha256:" + hashlib.sha256(MIT_FIXTURE).hexdigest()})
+            # Real gh release upload without --clobber fails the same way.
+            api.calls.append(("UPLOAD", path.name))
+            raise m.MetadataError("conflict")
+
+        api.upload = upload
+        with self.assertRaises((m.MetadataError, lic.assets.MetadataError)):
+            lic.ensure_license(api, "owner/repo", TAG, BIN, MIT_FIXTURE)
+        # The concurrent notice is identical to the tagged upstream, so a rerun
+        # verifies it instead of mutating anything.
+        self.assertFalse(lic.ensure_license(api, "owner/repo", TAG, BIN, MIT_FIXTURE))
+        self.assertEqual(len(api.release["assets"]), len(original) + 1)
+
+    def test_upload_with_corrupted_result_is_refused(self):
+        api = Fake(side=True)
+        before = list(api.release["assets"])
+
+        def upload(tag, path):
+            # Simulate server-side mangling: asset lands but bytes differ.
+            api.content[999] = MIT_FIXTURE + b"x"
+            api.release["assets"].append({"id": 999, "name": path.name, "state": "uploaded",
+                                          "size": len(MIT_FIXTURE) + 1,
+                                          "digest": "sha256:" + hashlib.sha256(MIT_FIXTURE + b"x").hexdigest()})
+
+        api.upload = upload
+        with self.assertRaisesRegex(lic.assets.MetadataError,
+                                    "does not match tagged upstream"):
+            lic.ensure_license(api, "owner/repo", TAG, BIN, MIT_FIXTURE)
+        self.assertEqual([a for a in api.release["assets"] if a["name"] != BIN + ".LICENSE"],
+                         before)
+
+    def test_missing_environment_refuses_cleanly(self):
+        # GITHUB_REPOSITORY absent -> clean MetadataError (mapped to exit 2 by
+        # the module's error handler) instead of a KeyError traceback.
+        with patch.dict(os.environ, {}, clear=True):
+            with patch.object(sys, "argv", ["release_license.py", TAG, BIN]):
+                with patch.object(lic, "download_tagged_license", return_value=MIT_FIXTURE):
+                    with self.assertRaises(lic.assets.MetadataError):
+                        lic.main()
 
 
 if __name__ == "__main__":
