@@ -7,6 +7,7 @@ binary + checksum must already exist; only a missing LICENSE sidecar is added.
 import hashlib
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 from urllib.request import urlopen
@@ -112,14 +113,17 @@ def main():
     import os
     tag, binary = sys.argv[1:]
     content = download_tagged_license(tag)
-    changed = ensure_license(assets.GitHub(), os.environ["GITHUB_REPOSITORY"],
-                             tag, binary, content)
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        raise assets.MetadataError("GITHUB_REPOSITORY is not set; refusing to guess")
+    changed = ensure_license(assets.GitHub(), repository, tag, binary, content)
     print("Upstream MIT LICENSE verified" + (" and uploaded" if changed else "; already present"))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (assets.MetadataError, assets.NotFound, OSError, ValueError) as e:
+    except (assets.MetadataError, assets.NotFound, subprocess.CalledProcessError,
+            OSError, ValueError) as e:
         print(f"Release license check failed: {e}", file=sys.stderr)
         sys.exit(2)
