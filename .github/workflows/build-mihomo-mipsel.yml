@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: MIT
 name: Build Mihomo for MIPSel
 
+# RETIRED 2026-10-11: do not build or publish further MIPSel binaries.
+# Preserve source for historical study. Re-enabling requires a new,
+# explicit maintenance decision and license review (Issue #8).
 on:
-  schedule:
-    - cron: '0 3 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mihomo-mipsel-release
@@ -15,6 +16,8 @@ concurrency:
 
 jobs:
   check-and-build:
+    # Deliberately disabled even on manual dispatch. Historical code only.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
