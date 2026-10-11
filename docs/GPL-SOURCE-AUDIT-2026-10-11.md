@@ -27,6 +27,45 @@ binaries, tags or live equipment were altered.
   and embeds a build-time timestamp. Reconstructing the **exact** old
   builder commit and toolchain is outstanding.
 
+## Updated hard evidence — 2026-10-11
+
+A [SHA-256-verified original `mipsel-v1.19.32` ELF](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.32)
+was inspected **without rebuilding or modifying it**:
+[`audit_published_elf.go`](../scripts/audit_published_elf.go) decoded the
+runtime `.gopclntab` and found **five actual Go function names** from
+`github.com/rasky/go-lzo`, including `Decompress1X` and
+`Decompress1X.func1`. A separate *unstripped diagnostic rebuild* using
+the exact upstream `v1.19.32` tag, Go `1.27.1` and MIPSel flags retained
+**seven `go-lzo` linker symbols**. The verified source import chain is:
+
+`mihomo → config → adapter/outbound → transport/openvpn → go-lzo`
+
+Source: [OpenVPN LZO adapter](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/transport/openvpn/lzo.go),
+which directly calls `lzo.Decompress1X` for LZO-compressed packets.
+Evidence: [successful read-only audit](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38132608435)
+and [PR #25](https://github.com/saymer-alt/mihomo-auto-build/pull/25).
+For that published version, presence of Go function metadata inside the
+original ELF is **confirmed**, no longer only a conjecture from `go.mod`.
+Other six affected historic binaries have not undergone the same ELF
+function audit individually.
+
+**No alternate grant identified:** in
+[go-lzo issue #6](https://github.com/rasky/go-lzo/issues/6#issuecomment-581445627),
+its maintainer explicitly declined dual licensing because the Go port
+was based on GPL-covered original C source. The pinned README/LICENSE
+declare GPLv2; no GPLv2-or-later permission was established.
+The [FSF compatibility FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#v2v3Compatibility)
+states GPLv2-only cannot ordinarily be combined with GPLv3 code.
+A legal conclusion and rights-holder analysis still require qualified
+review; the technical risk is now **high**, rather than hypothetical.
+
+**Safety:** production new-build blocking is already enabled for an
+MIPSel build importing `go-lzo`; no binary assets were modified.
+Safe long-term remediation requires upstream OpenVPN LZO code replacement
+with a properly licensed compatible implementation, or a documented
+authorization from *all relevant* rights holders, not merely renaming
+the license. Do not silently drop OpenVPN functionality to pass the gate.
+
 ## P1: confirmed wrong license label for go-lzo
 
 In `v1.19.32`, the published `THIRD_PARTY_LICENSES` summary labels
@@ -119,8 +158,12 @@ published versions are not changed.
 published summaries and corrected with on-page errata; nine source
 entry-point link sections now exist; the classifier and narrowly
 guarded historic-notice checks were merged after end-to-end CI.
-The go-lzo package participates in the v1.19.32 MIPSel import graph.
-Exact build provenance, linker output and Complete Corresponding Source
+The published v1.19.32 ELF itself retains five `go-lzo` functions,
+and a diagnostic rebuild retains seven symbols. Historic builder run
+revisions and all compiler versions are mapped in
+[the provenance report](HISTORICAL-BUILD-PROVENANCE-2026-10-11.md).
+A byte-identical rebuild, historical source correspondence, legal
+GPLv2/GPLv3 compatibility and Complete Corresponding Source
 sufficiency remain open.
 
 **Action:** keep [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
