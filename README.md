@@ -85,24 +85,25 @@ python3 -m unittest discover -s tests -p "test_*.py"
 
 This repository builds upstream [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo) from tagged source. **Upstream Mihomo is licensed under GNU GPL-3.0**, as verified for the published `v1.19.24`–`v1.19.32` tags; see the exact tagged [upstream LICENSE](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/LICENSE) and [UPSTREAM_NOTICE.md](UPSTREAM_NOTICE.md). **The original builder scripts and workflows authored by saymer-alt are separately licensed under MIT** (© 2026 saymer-alt; [LICENSE](LICENSE)). The release workflow is designed to attach the tagged upstream GPL-3.0 text and a per-version third-party license summary and full collected notice texts. Automatic classification is a provenance aid, **not proof of license compatibility or fulfillment of every GPL source-distribution obligation**. See [LICENSING.md](LICENSING.md) and [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
 
-## Historical release notice backfill (manual, dry-run first)
+## Historical release notice backfill (completed 2026-10-10)
 
-Eight historical releases (`v1.19.24`–`v1.19.31`) currently provide **only binaries**.
-To avoid modifying healthy binaries, the [historical backfill workflow](.github/workflows/historical-license-backfill.yml)
-runs **only on manual dispatch** and defaults to **`mode=plan`**.
+All eight historical releases (`v1.19.24`–`v1.19.31`) now have the same **five release assets**
+as `v1.19.32`: original MIPSel binary, `.sha256` sidecar, exact tagged upstream GPL-3.0
+`.LICENSE`, version-specific `THIRD_PARTY_LICENSES` and full `THIRD_PARTY_NOTICES`.
+The missing four assets per historical version (32 total) were added **without replacing any
+published binary**. The owner-run [read-only audit](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38088679082)
+and per-version manual `plan → publish` runs are recorded in
+[Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8#issuecomment-6102988561).
 
-1. In **Actions → Historical MIPSel license backfill → Run workflow**, select a version and leave `mode=plan`.
-2. The dry run downloads the actual archived binary, verifies its size and SHA-256 against GitHub
-   asset metadata, checks the Go embedded version, and prepares per-version license notices.
-3. If and only if the dry run succeeds and its results have been reviewed, dispatch that version
-   again with `mode=publish`. This may **add** a missing checksum sidecar, exact tagged upstream
-   GPL-3.0 LICENSE and two third-party notice assets, but never replaces existing binary bytes.
-4. Check asset IDs, digests, size and the completed workflow; repeat individually for the next version.
+The [historical backfill workflow](.github/workflows/historical-license-backfill.yml)
+remains **manual-only**, defaults to read-only `mode=plan` and refuses to rebuild/replace
+an existing binary. It should not be run in `publish` mode routinely against already
+complete releases. For future recovery, inspect existing asset IDs/digests, run `plan` first,
+and use `publish` only for explicitly approved, verified missing notice assets.
 
-**Limitations:** no automatic publication or rollback is asserted for historical releases;
-network/API failures can leave a partially populated set of **new** notice assets.
-The workflow cannot prove complete corresponding-source availability or resolve every
-GPL/LGPL/MPL obligation; track remaining questions in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
+**Limitations:** GitHub Actions PASS and the five assets do **not** prove Complete Corresponding
+Source availability or resolve GPL/LGPL/MPL compliance and code-linkage questions.
+The outstanding review remains tracked in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
 
 ## Related projects
 
