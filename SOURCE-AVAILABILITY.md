@@ -22,12 +22,21 @@ See [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8) for ope
    is in this repository: [build workflow](.github/workflows/build-mihomo-mipsel.yml),
    [asset publisher](scripts/release_assets.py) and
    [license collector](scripts/collect_upstream_licenses.py).
-   See the release date and Git history to identify the **actual build commit**;
-   current `main` may have changed since historic binaries were generated.
+   Consult the [historical build-provenance map](docs/HISTORICAL-BUILD-PROVENANCE-2026-10-11.md)
+   for all nine GitHub Actions run head SHAs, pinned builder workflow revisions
+   and retained per-run Go compiler evidence. The five oldest runs lack
+   retrievable raw logs, so their build-to-release association is not an
+   independently proven binary attestation. Do **not** substitute
+   current `main` for a historical build revision.
 5. Verify the binary digest against the individual GitHub Release asset metadata.
    All nine published versions (`v1.19.24`–`v1.19.32`) have a `*.sha256` sidecar and GPL/dependency notices after the verified 2026-10-10 backfill.
    A SHA-256 establishes integrity of bytes, **not** correspondence of
    all sources or the legal sufficiency of a source offer.
+
+The [nine-release historical Actions map](docs/HISTORICAL-BUILD-PROVENANCE-2026-10-11.md)
+records the original builder source snapshot candidates alongside exact
+tagged upstream source commits. This narrows—but does not close—the
+Complete Corresponding Source and reproducibility review.
 
 ## Exact upstream version / source map
 
