@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-name: Historical MIPSel license backfill
+name: Historical MIPSel license backfill (retired; no mutations)
 on:
   workflow_dispatch:
     inputs:
@@ -13,12 +13,14 @@ on:
         type: choice
         options: [plan, publish]
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: mihomo-mipsel-release
   cancel-in-progress: false
 jobs:
   historical-notices:
+    # RETIRED 2026-10-11: do not modify old Release assets.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

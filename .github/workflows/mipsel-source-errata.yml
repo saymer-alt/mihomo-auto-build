@@ -1,27 +1,12 @@
 # SPDX-License-Identifier: MIT
-name: MIPSel source links and GPLv2 license errata
+name: MIPSel source links and GPLv2 license errata (retired)
 
+# RETIRED 2026-10-11: no automatic or manual publication.
 on:
-  pull_request:
-    paths:
-      - 'scripts/update_release_source_notes.py'
-      - 'tests/test_release_source_notes.py'
-      - '.github/workflows/mipsel-source-errata.yml'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/mipsel-source-errata.yml'
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'plan (read-only) or publish (append Release descriptions only)'
-        type: choice
-        required: true
-        default: plan
-        options: [plan, publish]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mihomo-mipsel-release
@@ -29,6 +14,8 @@ concurrency:
 
 jobs:
   release-descriptions:
+    # Do not touch historical Release descriptions again by automation.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
