@@ -8,9 +8,13 @@ obligations have been met.** This is a triage list for [Issue #8](https://github
 ## Evidence, not a conclusion
 
 - Report: **112 modules in the Go build graph** (upstream main module + 111 deps),
-  with **20 copyleft indicators** (GPL: 14, LGPL: 2,
-  MPL/mixed: 4). This reflects heuristic recognition of
-  one or more license texts for each effective module **version**.
+  with **20 copyleft indicators** (original auto-classification: GPL: 14,
+  LGPL: 2, MPL/mixed: 4). A **confirmed classifier error** means those
+  category counts are not reliable: `rasky/go-lzo` was wrongly labeled
+  LGPL-2.1, while its exact upstream README and LICENSE.gpl say GPLv2.
+  If all other labels stand, the corrected grouping would be 15 GPL,
+  1 LGPL and 4 MPL/mixed. These remain *build-graph indicators*,
+  not proven included code.
 - Go build-info is **not a linker object map**. It can include modules whose code
   is not present in a particular binary. The inventory alone cannot establish
   a license's applicability or static/dynamic combination conditions.
@@ -41,7 +45,7 @@ obligations have been met.** This is a triage list for [Issue #8](https://github
 | `github.com/metacubex/sing@v0.5.8` | `GPL-3.0-or-later` | GPL | Unverified: inclusion and obligations |
 | `github.com/metacubex/yamux@v0.0.0-20250918083631-dd5f17c0be49` | `BSD-3-Clause+MPL-2.0` | MPL | Unverified: inclusion and obligations |
 | `github.com/metacubex/zerotier-go@v0.0.0-20260813124750-13fa6f45da5f` | `MPL-2.0` | MPL | Unverified: inclusion and obligations |
-| `github.com/rasky/go-lzo@v0.0.0-20200203143853-96a758eda86e` | `LGPL-2.1` | LGPL | Unverified: inclusion and obligations |
+| `github.com/rasky/go-lzo@v0.0.0-20200203143853-96a758eda86e` | **GPL-2.0** (upstream README and `LICENSE.gpl` at pinned commit; published summary **incorrectly says LGPL-2.1**) | GPLv2 | **High priority: prove inclusion, check GPLv2-only/GPLv3 compatibility** |
 | `github.com/sina-ghaderi/poly1305@v0.0.0-20220724002748-c5926b03988b` | `GPL-3.0` | GPL | Unverified: inclusion and obligations |
 | `github.com/sina-ghaderi/rabaead@v0.0.0-20220730151906-ab6e06b96e8c` | `GPL-3.0` | GPL | Unverified: inclusion and obligations |
 
@@ -68,7 +72,11 @@ obligations have been met.** This is a triage list for [Issue #8](https://github
    existing binary objects/digests. Require individual audit and authorization
    before adding missing files.
 
-**Result today:** inventory created; full notices delivered for v1.19.32;
-**license compatibility, code inclusion and GPLv3 complete-source sufficiency
-remain unresolved**. [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
-must remain open.
+**Updated 2026-10-11:** full notices and checksum assets exist for **all nine**
+published versions, but the `go-lzo` license category in already published
+summary is wrong. The upstream README explicitly declares GPLv2 (no
+"or later" grant identified in the reviewed pinned README/LICENSE).
+See [the evidence audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
+**License compatibility, actual linked code and GPLv3 Complete Corresponding
+Source sufficiency remain unresolved**. [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
+must remain OPEN.
