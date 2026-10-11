@@ -5,7 +5,10 @@ on:
   pull_request:
     paths:
       - 'scripts/audit_mipsel_golzo_link.py'
+      - 'scripts/audit_historical_compilers.py'
+      - 'scripts/audit_published_elf.go'
       - 'tests/test_mipsel_golzo_link.py'
+      - 'tests/test_audit_historical_compilers.py'
       - '.github/workflows/audit-mipsel-golzo-link.yml'
   workflow_dispatch:
 
@@ -22,7 +25,9 @@ jobs:
           go-version: '1.27.1'
           cache: false
       - name: Unit tests for evidence parser
-        run: python3 -m unittest discover -s tests -p 'test_mipsel_golzo_link.py'
+        run: |
+          python3 -m unittest discover -s tests -p 'test_mipsel_golzo_link.py'
+          python3 -m unittest discover -s tests -p 'test_audit_historical_compilers.py'
       - name: Verify published MIPSel v1.19.32 binary and original Go version
         env:
           GH_TOKEN: ${{ github.token }}
@@ -39,6 +44,11 @@ jobs:
           set -euo pipefail
           go run ./scripts/audit_published_elf.go /tmp/original-mipsel.bin |
             tee published-elf-go-lzo-functions.json
+      - name: Recover missing historic Go compiler versions from original binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/audit_historical_compilers.py --output historical-mipsel-buildinfo.json
       - name: Checkout exact upstream source and audit selected packages
         run: |
           set -euo pipefail
@@ -80,6 +90,7 @@ jobs:
           path: |
             mipsel-golzo-evidence.json
             published-elf-go-lzo-functions.json
+            historical-mipsel-buildinfo.json
             original-buildinfo.txt
           if-no-files-found: error
           retention-days: 90
