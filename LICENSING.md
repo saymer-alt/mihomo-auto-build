@@ -40,21 +40,32 @@ owner owns; it corrects the factual record about upstream.
 > 2023 KT". That description was incorrect for every tag used by published
 > releases; it was corrected in the PR #12 review cycle.
 
-## Release-distribution follow-up
+## Release-distribution follow-up (technical inventory, 2026-10-11)
 
-As inspected on 2026-10-10:
+All **nine** published MIPSel releases (`v1.19.24`–`v1.19.32`) now contain
+five downloadable assets each: the original binary, SHA-256 sidecar,
+tagged upstream GPL-3.0 LICENSE, module-license summary and full notice texts.
+The 2026-10-10 owner-approved backfill added four missing assets to each of
+eight historical releases; existing binary IDs, sizes and digests were preserved.
+Evidence: [Issue #8 verified backfill report](https://github.com/saymer-alt/mihomo-auto-build/issues/8#issuecomment-6102988561).
 
-- Release `mipsel-v1.19.32` includes the binary and SHA-256 sidecar.
-- Earlier releases `mipsel-v1.19.31` and `mipsel-v1.19.30` were observed to
-  have only the binary asset.
-- An independently downloadable upstream `LICENSE` or `NOTICE` asset was
-  **not** present in those releases at the time of the original audit.
-  As of the subsequent verified publication, `v1.19.32` now carries all
-  three license/notice assets; `v1.19.24`–`v1.19.31` still lack them.
-  Attaching missing notices to existing releases is a deliberate,
-  owner-approved action; the workflow never mutates binaries or checksums.
+**Open gaps confirmed 2026-10-11:**
+- None of the nine existing **Release descriptions** directly identifies its
+  tagged upstream source and corresponding builder snapshot. The
+  [source map](SOURCE-AVAILABILITY.md) is helpful but not a substitute
+  for verified, easy-to-find per-release Complete Corresponding Source access.
+- The historical `THIRD_PARTY_LICENSES-v1.19.32.txt` **incorrectly calls
+  `rasky/go-lzo` LGPL-2.1**: exact upstream README and `LICENSE.gpl`
+  declare GPLv2. A known false-positive in the license classifier is recorded
+  in [the independent audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
+  Future classifier fix is held in [draft PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21)
+  until a safe strategy for already published notices is approved.
+- Presence of notices is not proof of license compatibility, actual module
+  linkage or Complete Corresponding Source availability.
 
-**The live `mipsel-v1.19.32` release has now been verified to contain the binary, checksum sidecar, tagged GPL LICENSE, dependency summary and full notices.** The historical inventory below describes the earlier state at the time of audit, not the current release.
+**Do not overwrite or delete existing release assets** to repair notice
+metadata. A correction must be reviewable and must preserve immutable
+binary evidence, with any existing notice discrepancies disclosed.
 
 The workflow retrieves the exact source-tag `LICENSE`, safely publishes
 `<binary>.LICENSE` alongside the already verified binary and SHA-256
@@ -74,9 +85,11 @@ require human provenance and actual-linkage review tracked in
   supersedes the other, and no license change is proposed for either.
 - New external contributions require independent rights/provenance review;
   the owner cannot relicense another person's work without permission.
-- **Third-party Go dependency notices** and historical release consistency
+- **Third-party Go module incorporation**, correct license identity (including
+  the `rasky/go-lzo` GPLv2 finding), and Complete Corresponding Source
   still require review in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
-- Consider historical release updates only after separate review. Never
+- Original checksum and notice assets for all historical releases have been
+  added and verified. Future corrections require separate review; never
   overwrite working binaries or silently rewrite released assets.
 
 For ordinary build bugs use [Issues](https://github.com/saymer-alt/mihomo-auto-build/issues).
