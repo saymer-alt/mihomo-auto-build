@@ -78,6 +78,16 @@ func TestLZOBoundedExpansion(t *testing.T){
     if !errors.Is(err,errSizeCap) {t.Fatalf("expected bounded expansion rejection, got %v",err)}
 }
 
+func TestStaticLZO1XFixtureFromFormat(t *testing.T){
+    // Format-level fixture: 5 initial literal bytes, then 0x11 0x00 0x00
+    // end marker. Independent of any GPL-licensed compression implementation.
+    frame:=[]byte{lzoCompressed,22,'h','e','l','l','o',0x11,0x00,0x00}
+    decoded,err:=decodeOpenVPNLZOFrame(frame)
+    if err!=nil || !bytes.Equal(decoded,[]byte("hello")) {
+        t.Fatalf("static LZO1X fixture: %v decoded=%q",err,decoded)
+    }
+}
+
 func TestInvalidOpenVPNFraming(t *testing.T){
     for _,b:=range [][]byte{nil,{}, {0x42},{lzoCompressed,0x00}} {
         if _,err:=decodeOpenVPNLZOFrame(b);err==nil {
