@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MIT
+name: Audit MIPSel go-lzo linked symbols (read-only)
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audit_mipsel_golzo_link.py'
+      - 'tests/test_mipsel_golzo_link.py'
+      - '.github/workflows/audit-mipsel-golzo-link.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linkage-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Unit tests for evidence parser
+        run: python3 -m unittest discover -s tests -p 'test_mipsel_golzo_link.py'
+      - name: Verify published MIPSel v1.19.32 binary and original Go version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download mipsel-v1.19.32 -R "$GITHUB_REPOSITORY" \
+            -p mihomo-linux-mipsel-softfloat-v1.19.32 -O /tmp/original-mipsel.bin
+          echo '0af50dedfa54274a013d7831e146858b8df6a5ffe1c934b699ab1135aef2679b  /tmp/original-mipsel.bin' | sha256sum --check
+          go version -m /tmp/original-mipsel.bin | tee original-buildinfo.txt
+          grep -F 'go1.27.1' original-buildinfo.txt
+          test "$(go version | awk '{print $3}')" = 'go1.27.1'
+      - name: Checkout exact upstream source and audit selected packages
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v1.19.32 https://github.com/MetaCubeX/mihomo.git upstream
+          test "$(git -C upstream rev-parse HEAD)" = '88dcbf7f1614a67c3b36b848ee3592dfa92ada36'
+          cd upstream
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go list -deps -json . > ../mipsel-selected-go-list.json
+      - name: Build ONLY diagnostic unstripped ELF (never publish)
+        run: |
+          set -euo pipefail
+          cd upstream
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go build -trimpath -ldflags '-buildid=' -o ../mipsel-probe-unstripped .
+          go tool nm -size ../mipsel-probe-unstripped > ../mipsel-probe-nm.txt
+          test -s ../mipsel-probe-nm.txt
+      - name: Record import chain and linked-symbol evidence
+        run: |
+          set -euo pipefail
+          python3 scripts/audit_mipsel_golzo_link.py \
+            --go-list mipsel-selected-go-list.json \
+            --nm mipsel-probe-nm.txt \
+            --out mipsel-golzo-evidence.json
+          {
+            echo '## Go/MIPSel linkage diagnostic — NOT original Release linkage proof'
+            echo ''
+            echo 'Source: MetaCubeX/mihomo v1.19.32 at pinned commit; Go 1.27.1, GOOS=linux GOARCH=mipsle GOMIPS=softfloat CGO_ENABLED=0.'
+            echo ''
+            echo 'Only the unstripped *diagnostic rebuild* was analyzed; historical published stripped binary was SHA-256 verified but not replaced.'
+            echo ''
+            echo '```json'
+            cat mipsel-golzo-evidence.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Store evidence JSON and original build info, NEVER binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mipsel-golzo-source-evidence
+          path: |
+            mipsel-golzo-evidence.json
+            original-buildinfo.txt
+          if-no-files-found: error
+          retention-days: 90
