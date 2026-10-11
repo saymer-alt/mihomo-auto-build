@@ -56,6 +56,21 @@ jobs:
           git clone --depth 1 --branch "$VERSION" https://github.com/MetaCubeX/mihomo.git ./mihomo-src
           cd ./mihomo-src
 
+          # Licensing safeguard: go-lzo@96a758eda86e is GPLv2 and is
+          # imported into the v1.19.32 MIPSel package graph. A future
+          # upstream release must not silently distribute another combined
+          # GPLv3/GPLv2 artifact until the grant/linkage issue is resolved.
+          # Scope strictly to NEW builds; never mutate existing releases.
+          echo "=== GPLv2-only MIPSel package inclusion safety gate ==="
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go list -deps -f '{{if .Module}}{{.Module.Path}}{{end}}' . \
+            > ../mipsel-selected-package-modules.txt
+          test -s ../mipsel-selected-package-modules.txt
+          if grep -Fxq 'github.com/rasky/go-lzo' ../mipsel-selected-package-modules.txt; then
+            echo "::error::Potential GPLv2/GPLv3 incompatibility: go-lzo in MIPSel package graph; see Issue #8. New binary publication blocked pending review."
+            exit 2
+          fi
+
           echo "=== Building optimized binary for MIPSel (MT7621) ==="
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
           go build \

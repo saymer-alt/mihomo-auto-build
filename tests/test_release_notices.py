@@ -143,6 +143,59 @@ class NoticeTests(unittest.TestCase):
                 self.publish(api, summary=b"")
         self.assertFalse(any(x[0] == "UPLOAD" for x in api.calls))
 
+    def test_approved_legacy_gplv2_notice_is_verified_without_mutation(self):
+        module = notices.GOLZO
+        old_summary = (
+            module + " | LGPL-2.1 | LICENSE.gpl | -\n"
+            + "  " + module + " -> LGPL-2.1\n").encode()
+        fixed_summary = old_summary.decode().replace("LGPL-2.1", "GPL-2.0").encode()
+        old_full = (
+            "--- " + module + " | license: LGPL-2.1 | files: LICENSE.gpl\n"
+            + "GNU GENERAL PUBLIC LICENSE\nVersion 2, June 1991\n").encode()
+        fixed_full = old_full.replace(b"license: LGPL-2.1", b"license: GPL-2.0")
+        api = Fake(side=True)
+        api.add(SUMMARY_NAME, old_summary)
+        api.add(FULL_NAME, old_full)
+        summary_digest = "sha256:" + hashlib.sha256(old_summary).hexdigest()
+        api.release["body"] = (
+            notices.ERRATA_MARKER
+            + "\nCorrection: " + module + ", GPL version 2\n"
+            + "Original summary digest: " + summary_digest + "\n")
+        before = copy.deepcopy(api.release["assets"])
+        s = notices.verify_asset_with_audited_erratum(
+            api, "owner/repo", api.release, SUMMARY_NAME, fixed_summary)
+        f = notices.verify_asset_with_audited_erratum(
+            api, "owner/repo", api.release, FULL_NAME, fixed_full)
+        self.assertIsNotNone(s)
+        self.assertIsNotNone(f)
+        self.assertEqual(api.release["assets"], before)
+        self.assertFalse(any(action in ("UPLOAD", "DELETE") for action, _ in api.calls))
+
+    def test_legacy_notice_refuses_missing_erratum_and_other_drift(self):
+        module = notices.GOLZO
+        old_summary = (
+            module + " | LGPL-2.1 | LICENSE.gpl | -\n"
+            + "  " + module + " -> LGPL-2.1\n").encode()
+        fixed = old_summary.replace(b"LGPL-2.1", b"GPL-2.0")
+        api = Fake(side=True)
+        api.add(SUMMARY_NAME, old_summary)
+        digest = "sha256:" + hashlib.sha256(old_summary).hexdigest()
+        api.release["body"] = ""
+        with self.assertRaises(ME):
+            notices.verify_asset_with_audited_erratum(
+                api, "owner/repo", api.release, SUMMARY_NAME, fixed)
+        api.release["body"] = (
+            notices.ERRATA_MARKER + "\n" + module + ", GPL version 2\n"
+            + "Original summary digest: " + digest + "\n")
+        with self.assertRaises(ME):
+            notices.verify_asset_with_audited_erratum(
+                api, "owner/repo", api.release, SUMMARY_NAME,
+                fixed + b"unexpected additional drift")
+        api.release["body"] = api.release["body"].replace(digest, "sha256:" + "0"*64)
+        with self.assertRaises(ME):
+            notices.verify_asset_with_audited_erratum(
+                api, "owner/repo", api.release, SUMMARY_NAME, fixed)
+
     def test_expected_names_derived_from_tag(self):
         self.assertEqual(notices.expected_names(TAG),
                          ("THIRD_PARTY_LICENSES-v1.19.32.txt",

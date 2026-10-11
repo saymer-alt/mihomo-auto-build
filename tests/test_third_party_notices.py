@@ -102,6 +102,23 @@ class ThirdPartyNotices(unittest.TestCase):
         self.assertIsNone(cl.classify(
             "Permission to use, copy, modify, and distribute this software."))
 
+    def test_gpl2_preamble_lgpl_mention_does_not_misclassify(self):
+        # Real-world regression: rasky/go-lzo@96a758eda86e LICENSE.gpl
+        # is canonical GPLv2, while its GPL preamble names LGPL as a
+        # DIFFERENT license. Published v1.19.32 summary incorrectly says LGPL.
+        gpl2 = ("                    GNU GENERAL PUBLIC LICENSE\n"
+                "                       Version 2, June 1991\n"
+                " Copyright (C) 1989, 1991 Free Software Foundation, Inc.\n"
+                " Some other Free Software Foundation software is covered by\n"
+                " the GNU Lesser General Public License instead.\n")
+        self.assertEqual(cl.classify(gpl2), "GPL-2.0")
+
+    def test_lgpl_title_is_still_recognized(self):
+        lgpl3 = ("GNU LESSER GENERAL PUBLIC LICENSE\n"
+                 "Version 3, 29 June 2007\n"
+                 "This version incorporates GNU General Public License v3.\n")
+        self.assertEqual(cl.classify(lgpl3), "LGPL-3.0")
+
     def test_parser_rejects_notice_only_modules(self):
         # A module whose files carry only NOTICE/PATENTS (no LICENSE/COPYING)
         # must never be reported as classified.

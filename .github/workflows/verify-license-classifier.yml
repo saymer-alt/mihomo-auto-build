@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+name: Verify GPLv2 correction against published MIPSel notices
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/collect_upstream_licenses.py'
+      - 'scripts/release_notices.py'
+      - 'tests/test_third_party_notices.py'
+      - 'tests/test_release_notices.py'
+      - '.github/workflows/verify-license-classifier.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-readonly-reconciliation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
+      - name: Offline regression tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Download published 1.19.32 MIPSel binary (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download mipsel-v1.19.32 -R "$GITHUB_REPOSITORY" \
+            -p 'mihomo-linux-mipsel-softfloat-v1.19.32' \
+            -O './mihomo-linux-mipsel-softfloat-v1.19.32'
+      - name: Regenerate correct notice texts from existing released bytes
+        run: |
+          python3 scripts/collect_upstream_licenses.py \
+            --binary ./mihomo-linux-mipsel-softfloat-v1.19.32 \
+            --summary THIRD_PARTY_LICENSES-v1.19.32.candidate.txt \
+            --full THIRD_PARTY_NOTICES-v1.19.32.candidate.txt
+      - name: Verify exact legacy assets with additive GPLv2 erratum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/release_notices.py verify mipsel-v1.19.32 \
+            THIRD_PARTY_LICENSES-v1.19.32.candidate.txt \
+            THIRD_PARTY_NOTICES-v1.19.32.candidate.txt
+      - name: Check go-lzo inclusion in MIPSel package import graph (read-only)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v1.19.32 https://github.com/MetaCubeX/mihomo.git upstream-mihomo
+          cd upstream-mihomo
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go list -deps -f '{{if .Module}}{{.Module.Path}}|{{.ImportPath}}{{end}}' . \
+            > ../mipsel-package-graph.txt
+          test -s ../mipsel-package-graph.txt
+          if grep -F 'github.com/rasky/go-lzo|' ../mipsel-package-graph.txt; then
+            echo 'go-lzo PRESENT in selected MIPSel package import graph (not proof of final linked symbols)' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'go-lzo ABSENT from selected MIPSel Go package import graph (not a complete binary provenance proof)' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
