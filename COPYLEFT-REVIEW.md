@@ -16,7 +16,11 @@ obligations have been met.** This is a triage list for [Issue #8](https://github
   1 LGPL and 4 MPL/mixed. These remain *build-graph indicators*,
   not proof of final linked symbols. A [MIPSel-targeted Go package graph check](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38131113277)
   did independently find the `go-lzo` package among selected imports for
-  v1.19.32. Final linked-code/legal obligations still need review.
+  v1.19.32. Subsequently, [PR #25](https://github.com/saymer-alt/mihomo-auto-build/pull/25)
+  proved **five go-lzo functions are retained in the original published
+  stripped v1.19.32 ELF's Go function metadata**; a diagnostic rebuild
+  has seven linked symbols. Exact legal compatibility and obligations
+  remain unresolved.
 - Go build-info is **not a linker object map**. It can include modules whose code
   is not present in a particular binary. The inventory alone cannot establish
   a license's applicability or static/dynamic combination conditions.
@@ -47,7 +51,7 @@ obligations have been met.** This is a triage list for [Issue #8](https://github
 | `github.com/metacubex/sing@v0.5.8` | `GPL-3.0-or-later` | GPL | Unverified: inclusion and obligations |
 | `github.com/metacubex/yamux@v0.0.0-20250918083631-dd5f17c0be49` | `BSD-3-Clause+MPL-2.0` | MPL | Unverified: inclusion and obligations |
 | `github.com/metacubex/zerotier-go@v0.0.0-20260813124750-13fa6f45da5f` | `MPL-2.0` | MPL | Unverified: inclusion and obligations |
-| `github.com/rasky/go-lzo@v0.0.0-20200203143853-96a758eda86e` | **GPL-2.0** (upstream README and `LICENSE.gpl` at pinned commit; published summary **incorrectly says LGPL-2.1**) | GPLv2 | **Go import graph PRESENT (v1.19.32); inspect linker inclusion and GPLv2/GPLv3 compatibility** |
+| `github.com/rasky/go-lzo@v0.0.0-20200203143853-96a758eda86e` | **GPL-2.0** (upstream README and `LICENSE.gpl` at pinned commit; published summary **incorrectly says LGPL-2.1**) | GPLv2 | **Original published v1.19.32 ELF retains 5 go-lzo functions; GPLv2/GPLv3 compatibility unresolved (P1)** |
 | `github.com/sina-ghaderi/poly1305@v0.0.0-20220724002748-c5926b03988b` | `GPL-3.0` | GPL | Unverified: inclusion and obligations |
 | `github.com/sina-ghaderi/rabaead@v0.0.0-20220730151906-ab6e06b96e8c` | `GPL-3.0` | GPL | Unverified: inclusion and obligations |
 
@@ -82,6 +86,7 @@ assets retained. The corrected classifier and strict legacy verifier
 were merged via [PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21).
 The pinned README/LICENSE declare GPLv2 (no "or later" grant was
 identified). See [the evidence audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
-**License compatibility, actual linked code and GPLv3 Complete Corresponding
-Source sufficiency remain unresolved**. [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
+**Actual go-lzo function inclusion in v1.19.32 is confirmed, but GPLv2/GPLv3
+legal compatibility and GPLv3 Complete Corresponding Source sufficiency
+remain unresolved**. [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
 must remain OPEN.

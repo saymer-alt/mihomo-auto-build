@@ -24,9 +24,11 @@ See [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8) for ope
    [license collector](scripts/collect_upstream_licenses.py).
    Consult the [historical build-provenance map](docs/HISTORICAL-BUILD-PROVENANCE-2026-10-11.md)
    for all nine GitHub Actions run head SHAs, pinned builder workflow revisions
-   and retained per-run Go compiler evidence. The five oldest runs lack
-   retrievable raw logs, so their build-to-release association is not an
-   independently proven binary attestation. Do **not** substitute
+   and actual Go compiler versions. For the five oldest releases the Go
+   version was recovered directly from SHA-256-verified original binary
+   build-info in [successful read-only CI](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38132608435),
+   while the old Actions run logs expired. Their build-to-release association
+   is still not an independently proven binary attestation. Do **not** substitute
    current `main` for a historical build revision.
 5. Verify the binary digest against the individual GitHub Release asset metadata.
    All nine published versions (`v1.19.24`–`v1.19.32`) have a `*.sha256` sidecar and GPL/dependency notices after the verified 2026-10-10 backfill.
