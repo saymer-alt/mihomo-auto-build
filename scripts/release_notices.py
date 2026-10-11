@@ -179,20 +179,37 @@ def publish(api, repo, tag, files):
     return uploaded
 
 
+def verify_existing(api, repo, tag, files):
+    """Read-only: require both published notice assets to match their exact bytes."""
+    names = expected_names(tag)
+    if tuple(files) != names:
+        raise assets.MetadataError("Expected summary and full notices for tag version")
+    local = {name: load_local(path, name) for name, path in files.items()}
+    release = assets.read_release(api, repo, tag)
+    for name in names:
+        if verify_asset_with_audited_erratum(
+                api, repo, release, name, local[name]) is None:
+            raise assets.MetadataError(f"Missing published notice: {name}")
+    print("Both immutable release notices verified against rebuilt content")
+
+
 def main():
     if len(sys.argv) != 5:
         raise assets.MetadataError("Expected: release_notices.py publish <tag> <summary> <full>")
     import os
     command, tag, summary, full = sys.argv[1:5]
-    if command != "publish":
+    if command not in ("publish", "verify"):
         raise assets.MetadataError("Invalid command")
     repository = os.environ.get("GITHUB_REPOSITORY")
     if not repository:
         raise assets.MetadataError("GITHUB_REPOSITORY is not set; refusing to guess")
     files = {expected_names(tag)[0]: summary, expected_names(tag)[1]: full}
-    uploaded = publish(assets.GitHub(), repository, tag, files)
-    print("Third-party notices verified" +
-          (" and uploaded: " + ", ".join(uploaded) if uploaded else "; already present"))
+    if command == "verify":
+        verify_existing(assets.GitHub(), repository, tag, files)
+    else:
+        uploaded = publish(assets.GitHub(), repository, tag, files)
+        print("Third-party notices verified" +
+              (" and uploaded: " + ", ".join(uploaded) if uploaded else "; already present"))
 
 
 if __name__ == "__main__":
