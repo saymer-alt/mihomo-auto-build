@@ -45,3 +45,17 @@ jobs:
           python3 scripts/release_notices.py verify mipsel-v1.19.32 \
             THIRD_PARTY_LICENSES-v1.19.32.candidate.txt \
             THIRD_PARTY_NOTICES-v1.19.32.candidate.txt
+      - name: Check go-lzo inclusion in MIPSel package import graph (read-only)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v1.19.32 https://github.com/MetaCubeX/mihomo.git upstream-mihomo
+          cd upstream-mihomo
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go list -deps -f '{{if .Module}}{{.Module.Path}}|{{.ImportPath}}{{end}}' . \
+            > ../mipsel-package-graph.txt
+          test -s ../mipsel-package-graph.txt
+          if grep -F 'github.com/rasky/go-lzo|' ../mipsel-package-graph.txt; then
+            echo 'go-lzo PRESENT in selected MIPSel package import graph (not proof of final linked symbols)' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'go-lzo ABSENT from selected MIPSel Go package import graph (not a complete binary provenance proof)' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
