@@ -34,6 +34,11 @@ jobs:
           go version -m /tmp/original-mipsel.bin | tee original-buildinfo.txt
           grep -F 'go1.27.1' original-buildinfo.txt
           test "$(go version | awk '{print $3}')" = 'go1.27.1'
+      - name: Inspect go-lzo function names in ORIGINAL published stripped ELF
+        run: |
+          set -euo pipefail
+          go run ./scripts/audit_published_elf.go /tmp/original-mipsel.bin |
+            tee published-elf-go-lzo-functions.json
       - name: Checkout exact upstream source and audit selected packages
         run: |
           set -euo pipefail
@@ -74,6 +79,7 @@ jobs:
           name: mipsel-golzo-source-evidence
           path: |
             mipsel-golzo-evidence.json
+            published-elf-go-lzo-functions.json
             original-buildinfo.txt
           if-no-files-found: error
           retention-days: 90
