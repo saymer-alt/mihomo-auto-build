@@ -106,9 +106,18 @@ def classify(text):
                 "permission to use, copy, modify, and/or distribute this software",
                 "permission to use, copy, modify, and distribute this software"))):
         return "ISC"
-    if "gnu lesser general public license" in low:
+    # License *titles* take precedence over incidental mentions in preambles.
+    # The canonical GPL-2.0 text explicitly mentions "GNU Lesser General
+    # Public License" in its introduction; searching for that phrase anywhere
+    # silently mislabels GPL-2.0-only projects (e.g. rasky/go-lzo) as LGPL-2.1.
+    header = "\n".join(t.splitlines()[:12])
+    gpl_title = bool(re.search(
+        r"^\s*GNU GENERAL PUBLIC LICENSE\s*$", header, re.M | re.I))
+    lgpl_title = bool(re.search(
+        r"^\s*GNU LESSER GENERAL PUBLIC LICENSE\s*$", header, re.M | re.I))
+    if lgpl_title or (not gpl_title and "gnu lesser general public license" in low):
         return "LGPL-3.0" if "version 3" in low else "LGPL-2.1"
-    if "gnu general public license" in low:
+    if gpl_title or "gnu general public license" in low:
         if "version 2, june 1991" in low:
             return "GPL-2.0" if "or later" not in low else "GPL-2.0-or-later"
         if "version 3, 29 june 2007" in low:
