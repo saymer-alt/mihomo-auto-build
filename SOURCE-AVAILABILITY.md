@@ -58,8 +58,10 @@ explains this specifically.
 - [ ] **Complete Corresponding Source** of the actual MIPSel binary is independently verified:
       exact build script revision, module versions and replacements, generated files,
       any compiled/embedded assets, and modification/install/run scripts where applicable.
-- [ ] Evidence that a version-correct source link is displayed **next to each published binary**
-      on every individual GitHub Release page, for all historical versions.
+- [x] Version-correct **upstream source entry points** were appended next to
+      each published binary on all nine GitHub Release pages
+      ([verified publication](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38130836000)).
+      This does **not** establish the historic builder commit or complete source.
 - [ ] Source download availability, public access, matching tagged trees and
       continued accessibility are verified for every release.
 - [ ] Applicable GPL/LGPL/MPL obligations (see [20 module indicators](COPYLEFT-REVIEW.md), including any conditions specific to
@@ -79,15 +81,19 @@ explains this specifically.
   four sidecar/notice assets were added on 2026-10-10 after independent audit.
   Do **not** overwrite or reissue their original binaries or mark full license
   obligations resolved without separate source/linkage review.
-- This page is supplemental: to satisfy GPLv3 §6(d) online distribution,
-  the release pages themselves should give easy-to-find version-specific
-  source directions, not require discovering a document buried in Git history.
+- Release descriptions now provide easy-to-find version-specific source
+  entry points and disclose the outstanding historical builder-source review.
+  Complete Corresponding Source access and GPLv3 §6(d) sufficiency remain
+  subject to independent verification.
 
 ## Future release verification
 
 The [scheduled build workflow](.github/workflows/build-mihomo-mipsel.yml)
 checks upstream once a day. As of this review the upstream latest version
 is `v1.19.32`; there is **no later upstream release** on which to validate the
-new-version path in production. Offline unit tests are not a substitute for
-a real future release. Re-check the first new version's binary/checksum,
-notices, source links and build provenance when it becomes available.
+new-version path in production. After the 2026-10-11 license audit,
+new builds also fail closed if the MIPSel-selected Go package graph includes
+the unresolved GPLv2 go-lzo dependency; this guard does not affect
+verification of an existing complete release. The first later upstream
+version must pass separate source/licensing review before publication.
+Offline tests alone are not a substitute for end-to-end validation.

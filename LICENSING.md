@@ -50,16 +50,20 @@ eight historical releases; existing binary IDs, sizes and digests were preserved
 Evidence: [Issue #8 verified backfill report](https://github.com/saymer-alt/mihomo-auto-build/issues/8#issuecomment-6102988561).
 
 **Open gaps confirmed 2026-10-11:**
-- None of the nine existing **Release descriptions** directly identifies its
-  tagged upstream source and corresponding builder snapshot. The
-  [source map](SOURCE-AVAILABILITY.md) is helpful but not a substitute
-  for verified, easy-to-find per-release Complete Corresponding Source access.
-- The historical `THIRD_PARTY_LICENSES-v1.19.32.txt` **incorrectly calls
-  `rasky/go-lzo` LGPL-2.1**: exact upstream README and `LICENSE.gpl`
-  declare GPLv2. A known false-positive in the license classifier is recorded
-  in [the independent audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
-  Future classifier fix is held in [draft PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21)
-  until a safe strategy for already published notices is approved.
+- All nine Release descriptions now include version-pinned upstream
+  source pointers ([PR #23](https://github.com/saymer-alt/mihomo-auto-build/pull/23)).
+  The precise historic builder revisions and full corresponding source
+  still require verification; source pointers alone do not prove compliance.
+- Seven original historical `THIRD_PARTY_LICENSES` summaries
+  (v1.19.26–v1.19.32) **incorrectly identify `rasky/go-lzo` as
+  LGPL-2.1**; pinned upstream sources identify it as GPLv2. The
+  original files remain unchanged; all seven Release descriptions
+  now carry a prominent correction. The classifier and precisely
+  scoped immutable legacy verifier were fixed in
+  [PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21).
+  A [cross-compiled package graph check](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38131113277)
+  confirms go-lzo imports for v1.19.32. Exact linked-symbol inclusion and
+  license compatibility remain open.
 - Presence of notices is not proof of license compatibility, actual module
   linkage or Complete Corresponding Source availability.
 

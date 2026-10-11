@@ -13,12 +13,14 @@ binaries, tags or live equipment were altered.
   8-release backfill and stable binary IDs/digests are documented
   in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8#issuecomment-6102988561).
   This audit independently checked asset metadata, not binary bytes.
-- All **nine current Release descriptions** were inspected. **None**
-  contains explicit, version-specific instructions to obtain complete
-  corresponding source or the actual historical builder commit.
-  [SOURCE-AVAILABILITY.md](../SOURCE-AVAILABILITY.md) separately maps
-  upstream tags and general build tooling, but this alone is not a
-  verified Complete Corresponding Source offer.
+- The original nine Release descriptions lacked version-specific source
+  pointers. On 2026-10-11, [PR #23](https://github.com/saymer-alt/mihomo-auto-build/pull/23)
+  appended exact upstream tag archives and go.mod/go.sum pointers to
+  **all nine**, plus explicit GPLv2 errata to the **seven affected releases**
+  (v1.19.26–v1.19.32). All original assets were unchanged and the
+  [publish job](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38130836000)
+  succeeded. The exact historical builder commit and Complete Corresponding
+  Source sufficiency are **still not established**.
 - The [build workflow](../.github/workflows/build-mihomo-mipsel.yml)
   cross-compiles with `CGO_ENABLED=0 GOOS=linux GOARCH=mipsle
   GOMIPS=softfloat`, `actions/setup-go@v5` selecting Go `stable`,
@@ -45,27 +47,32 @@ mentions LGPL as a separate license and triggers this false positive.
 **Impact:** the old automatically generated `14 GPL / 2 LGPL /
 4 MPL-mixed` table is misleading. With the known correction alone,
 candidate counts become **15 GPL / 1 LGPL / 4 MPL-mixed**, still
-not proof of linked code. No audit of other eight version-specific
-summaries for this problem has been completed yet.
+not proof of linked code. Separate download/inspection of all nine
+release summaries in [PR #23's verified preflight](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38130787419)
+found the *same proven mislabel* in **seven** versions (v1.19.26–v1.19.32);
+v1.19.24 and v1.19.25 do not list go-lzo.
 
 **Compatibility risk:** if GPLv2-only source is actually incorporated
 into a combined GPLv3 executable, these terms can be incompatible.
-However, `go.mod` and `go version -m` list module-graph members,
-**not** linked object code. Inclusion of go-lzo in the MIPSel binary
-is **not established**, so no legal violation is asserted.
-The author's declaration and license grant must also be assessed
-for any additional permissions or exceptions.
+A real [read-only Go build-graph check](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38131113277)
+using the exact upstream tag and `GOOS=linux GOARCH=mipsle GOMIPS=softfloat
+CGO_ENABLED=0` confirmed the `github.com/rasky/go-lzo` **package is in the
+selected Go import graph**. This is stronger than `go.mod` membership, but
+does not independently prove final linked symbols or legal compatibility;
+no legal violation is asserted. The license grant and any exceptions
+still need a qualified compatibility assessment.
 Reference: [GNU GPL compatibility FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#v2v3Compatibility).
 
-[Draft PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21)
-contains a targeted header-aware classifier correction and two
-offline regression tests. **Do not merge it immediately.** The
-scheduled release workflow recalculates notices for complete old
-releases; corrected generated text will differ from the immutable
-published summary and the existing publisher correctly fails closed.
-An owner-approved, auditable **additive erratum/correction strategy**
-is needed, retaining original asset IDs/digests and original binaries.
-Never silently overwrite old summaries or turn off mismatch checks.
+[PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21)
+is now **merged**: the classifier identifies the actual GPLv2 text by
+its canonical header, with regression tests and a strictly limited
+legacy-asset compatibility path. Existing historical summaries/full
+notices are preserved byte-for-byte; regeneration of corrected notices
+was [tested against the actual v1.19.32 binary](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38131232750).
+Any drift other than the exactly documented go-lzo label still fails closed.
+The new build workflow blocks a *new* MIPSel binary when its import
+graph includes the unresolved GPLv2 go-lzo dependency; previously
+published versions are not changed.
 
 ## Remaining corresponding-source and license audit
 
@@ -75,14 +82,15 @@ Never silently overwrite old summaries or turn off mismatch checks.
    verifiable links directly next to the binary on each of nine Release
    pages. Identify *actual* builder commit from historical provenance;
    do not substitute present `main` or infer it from dates. GitHub
-   API currently shows **0/9 source-linked descriptions**.
-2. **Actual package inclusion:** using the tagged source and correct
-   compilation environment, run `go list -deps -json` against the
-   *actual built entry package* (not all repo packages). Map imported
-   packages/files to module roots under the MIPSel GOOS/GOARCH/tags,
-   especially `go-lzo`. Separately verify code generation and
-   stripped executable characteristics. Do not infer linkage from
-   direct vs indirect `go.mod` entries.
+   Source pointers are now present on **9/9 release descriptions**, but
+   the exact historical builder commits and actual CCS completeness
+   remain open for verification.
+2. **Actual code/linkage:** `go list -deps` has now shown that the
+   `go-lzo` package is imported by the MIPSel-selected Go package
+   graph of v1.19.32. Next resolve reachability and linker elimination,
+   final object-code inclusion, generated/embedded source components
+   and whether GPLv2/GPLv3 may lawfully be combined. Repeat provenance
+   checks across historical versions rather than extrapolating.
 3. **Module license provenance:** review exact effective source
    versions, file SPDX headers, exceptions and optional grants for
    all 20 copyleft-indicator modules and all versions actually
@@ -107,11 +115,15 @@ Never silently overwrite old summaries or turn off mismatch checks.
 
 ## Disposition
 
-**Observed:** published notice files exist; one confirmed GPL/LGPL
-classification defect; nine source-pointer gaps; source/toolchain and
-linked-code proofs incomplete.
+**Observed:** the incorrect license label was verified in seven
+published summaries and corrected with on-page errata; nine source
+entry-point link sections now exist; the classifier and narrowly
+guarded historic-notice checks were merged after end-to-end CI.
+The go-lzo package participates in the v1.19.32 MIPSel import graph.
+Exact build provenance, linker output and Complete Corresponding Source
+sufficiency remain open.
 
 **Action:** keep [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
-OPEN, prioritize the go-lzo inclusion/compatibility check, establish
-a safe erratum strategy and only then promote the classifier fix.
+OPEN, prioritize legal compatibility and exact historical build-source
+evidence. The new-build guard should remain until resolved.
 Do not claim full GPL compliance from CI PASS or release asset count.
