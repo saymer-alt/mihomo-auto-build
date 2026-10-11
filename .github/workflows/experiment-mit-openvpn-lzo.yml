@@ -42,6 +42,28 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
             go test -c -o /tmp/mipsel-mit-lzo-experiment.test .
           file /tmp/mipsel-mit-lzo-experiment.test
+      - name: Integration spike in throwaway upstream Mihomo v1.19.32 checkout
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v1.19.32 https://github.com/MetaCubeX/mihomo.git upstream
+          test "$(git -C upstream rev-parse HEAD)" = '88dcbf7f1614a67c3b36b848ee3592dfa92ada36'
+          python3 experiments/mit-lzo-openvpn/patch_mihomo_lzo.py --root upstream
+          cd upstream
+          go get github.com/anchore/go-lzo@v0.1.0
+          go mod tidy
+          gofmt -w transport/openvpn/lzo.go transport/openvpn/lzo_test.go
+          go test -count=1 ./transport/openvpn -run 'TestLzo1xSafe|TestMITReplacementCompressedFrame'
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go list -deps -f '{{if .Module}}{{.Module.Path}}{{end}}' . > ../candidate-mipsel-module-list.txt
+          if grep -Fxq 'github.com/rasky/go-lzo' ../candidate-mipsel-module-list.txt; then
+            echo 'GPLv2-only go-lzo still in production package graph'; exit 2
+          fi
+          grep -Fxq 'github.com/anchore/go-lzo' ../candidate-mipsel-module-list.txt
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go build -trimpath -ldflags '-s -w -buildid=' -o /tmp/mihomo-mit-lzo-integration-probe .
+          file /tmp/mihomo-mit-lzo-integration-probe
+          go version -m /tmp/mihomo-mit-lzo-integration-probe | grep -F 'github.com/anchore/go-lzo'
+          echo 'Temporary full Mihomo MIPSel source builds without GPLv2-only go-lzo, with OpenVPN LZO smoke tests passing.' >> "$GITHUB_STEP_SUMMARY"
       - name: Explain scope
         run: |
           echo 'MIT decoder feasibility tests passed on amd64; MIPSel cross-compilation verified.' >> "$GITHUB_STEP_SUMMARY"
