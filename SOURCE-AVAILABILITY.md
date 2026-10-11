@@ -25,7 +25,7 @@ See [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8) for ope
    See the release date and Git history to identify the **actual build commit**;
    current `main` may have changed since historic binaries were generated.
 5. Verify the binary digest against the individual GitHub Release asset metadata.
-   Only `v1.19.32` currently has a published `*.sha256` sidecar.
+   All nine published versions (`v1.19.24`–`v1.19.32`) have a `*.sha256` sidecar and GPL/dependency notices after the verified 2026-10-10 backfill.
    A SHA-256 establishes integrity of bytes, **not** correspondence of
    all sources or the legal sufficiency of a source offer.
 
@@ -33,14 +33,14 @@ See [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8) for ope
 
 | Binary release | Download | Corresponding upstream source entry points | Archive note |
 | --- | --- | --- | --- |
-| `mipsel-v1.19.24` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.24) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.24) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.24.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.25` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.25) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.25) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.25.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.26` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.26) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.26) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.26.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.27` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.27) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.27) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.27.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.27/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.27/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.28` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.28) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.28) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.28.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.28/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.28/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.29` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.29) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.29.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.29/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.29/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.30` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.30) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.30) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.30.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/go.sum) | Only binary observed; no SHA-256 or license notice assets |
-| `mipsel-v1.19.31` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.31) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.31) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.31.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/go.sum) | Only binary observed; no SHA-256 or license notice assets |
+| `mipsel-v1.19.24` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.24) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.24) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.24.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.24/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.25` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.25) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.25) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.25.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.25/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.26` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.26) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.26) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.26.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.26/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.27` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.27) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.27) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.27.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.27/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.27/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.28` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.28) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.28) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.28.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.28/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.28/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.29` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.29) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.29.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.29/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.29/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.30` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.30) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.30) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.30.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
+| `mipsel-v1.19.31` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.31) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.31) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.31.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/go.sum) | 2026-10-10 backfill: five assets verified; original binary unchanged |
 | `mipsel-v1.19.32` | [binary release](https://github.com/saymer-alt/mihomo-auto-build/releases/tag/mipsel-v1.19.32) | [tagged source](https://github.com/MetaCubeX/mihomo/tree/v1.19.32) · [source archive](https://github.com/MetaCubeX/mihomo/archive/refs/tags/v1.19.32.tar.gz) · [go.mod](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/go.mod) · [go.sum](https://github.com/MetaCubeX/mihomo/blob/v1.19.32/go.sum) | Binary, SHA-256, GPL LICENSE, dependency summary and full license notices verified |
 
 ## GPLv3 §6(d) review checklist
@@ -54,7 +54,7 @@ The [FSF FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#SourceAndBinaryOnDiff
 explains this specifically.
 
 - [x] Exact upstream source tags for the nine historical published binaries are identified.
-- [x] The latest `v1.19.32` release has GPL-3.0 and third-party license notice assets.
+- [x] All nine releases (`v1.19.24`–`v1.19.32`) have five assets each, including GPL-3.0 and version-specific third-party license notices; binary IDs/digests were preserved during historical backfill.
 - [ ] **Complete Corresponding Source** of the actual MIPSel binary is independently verified:
       exact build script revision, module versions and replacements, generated files,
       any compiled/embedded assets, and modification/install/run scripts where applicable.
@@ -65,8 +65,8 @@ explains this specifically.
 - [ ] Applicable GPL/LGPL/MPL obligations (see [20 module indicators](COPYLEFT-REVIEW.md), including any conditions specific to
       static linking/relinking or file-level source disclosures) have been
       reviewed against **actually incorporated code**, not simply 112 build-info modules.
-- [ ] Requirements for all historical releases' license and attribution notices are
-      addressed in a safe, reviewed backfill with binary IDs/digests unchanged.
+- [x] Historical missing checksum and license/attribution notice **assets** were added by reviewed per-version `plan → publish` runs; original binary IDs/sizes/digests remained unchanged.
+      This does **not** close source-offer completeness or applicable license obligations.
 
 ### Limitations and safety
 
@@ -75,9 +75,10 @@ explains this specifically.
 - Upstream source and the current workflow are publicly readable, but this
   document does **not** assert that a release tarball containing all source,
   all build scripts or an exact binary-rebuild proof has been published.
-- The `v1.19.24`–`v1.19.31` releases predate notice automation.
-  Do **not** overwrite or reissue their binaries, silently add assets, or
-  mark their license obligations resolved without separate review.
+- The `v1.19.24`–`v1.19.31` releases predate notice automation; their missing
+  four sidecar/notice assets were added on 2026-10-10 after independent audit.
+  Do **not** overwrite or reissue their original binaries or mark full license
+  obligations resolved without separate source/linkage review.
 - This page is supplemental: to satisfy GPLv3 §6(d) online distribution,
   the release pages themselves should give easy-to-find version-specific
   source directions, not require discovering a document buried in Git history.
