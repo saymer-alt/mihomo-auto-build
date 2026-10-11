@@ -90,3 +90,19 @@ identified). See [the evidence audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
 legal compatibility and GPLv3 Complete Corresponding Source sufficiency
 remain unresolved**. [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
 must remain OPEN.
+
+## Safe OpenVPN LZO replacement research (2026-10-11)
+
+A [tested MIT OpenVPN LZO replacement](docs/OPENVPN-LZO-MIT-REMEDIATION-2026-10-11.md) has passed a read-only experiment on
+the actual Mihomo `v1.19.32` source: MIT-licensed
+`anchore/go-lzo@v0.1.0`, OpenVPN compressed-frame tests and a
+complete cross-compiled MIPSel ELF without `rasky/go-lzo`
+in the effective package graph.
+[GitHub Actions SUCCESS](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38133325622).
+
+**No published binary or production builder was changed.**
+The production new-build safety gate remains enabled until upstream
+reviews and integrates an appropriate implementation, licensing
+and source-delivery obligations are evaluated, and interoperability
+is independently validated. Existing historical releases remain
+a separate compliance-review concern in [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8).
