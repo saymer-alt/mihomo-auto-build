@@ -1,12 +1,29 @@
 # mihomo-auto-build
 
-Automated builds of [Mihomo](https://github.com/MetaCubeX/mihomo) (Clash Meta) for **MIPSel (softfloat)** routers and embedded Linux devices, produced and published by GitHub Actions.
+> **Historical experiment — retired on 2026-10-11.**
+> This was a spring 2026 proof-of-concept for building Mihomo for MIPSel
+> (softfloat). The owner does not use or maintain the binaries.
+> **No further builds or releases are planned.** Automatic publication
+> and publish-capable GitHub Actions jobs are deliberately disabled.
+> Existing releases and source code remain available as historical
+> artifacts, **not recommended for new deployment or ongoing updates**.
+> The distributed historical binaries have a documented, unresolved
+> GPLv2-only / GPLv3 license-compatibility risk; see [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8)
+> and [the licensing audit](docs/GPL-SOURCE-AUDIT-2026-10-11.md).
+> Retiring the project does not retroactively resolve license obligations.
 
-Upstream Mihomo publishes official binaries for many platforms, but not for `mipsle / GOMIPS=softfloat` — the combination required by MT7621-class MIPSel routers. This repository builds that target from source on every upstream release.
+This repository previously built [Mihomo](https://github.com/MetaCubeX/mihomo)
+(Clash Meta) binaries for **MIPSel (softfloat)** routers and embedded Linux
+devices using GitHub Actions. The builds and experiments are preserved for
+reference; this is **not an active software distribution project**.
+
+Upstream Mihomo publishes official binaries for many platforms, but not for `mipsle / GOMIPS=softfloat` — the combination required by MT7621-class MIPSel routers. While active, this repository built that target from tagged source. It no longer tracks or publishes upstream releases.
 
 ## What it does
 
-A scheduled workflow ([`build-mihomo-mipsel.yml`](.github/workflows/build-mihomo-mipsel.yml), daily at 03:00 UTC, manual dispatch enabled):
+The **former**, now-disabled scheduled workflow
+([`build-mihomo-mipsel.yml`](.github/workflows/build-mihomo-mipsel.yml);
+previously daily at 03:00 UTC) performed the following steps:
 
 1. Reads the latest upstream Mihomo release (` vX.Y.Z`, strict semver check).
 2. Inspects the existing publication state and builds **only what is missing or invalid** — a healthy released binary is never overwritten (`scripts/release_assets.py` publication state machine).
@@ -30,13 +47,18 @@ Verify a download:
 sha256sum --check mihomo-linux-mipsel-softfloat-vX.Y.Z.sha256
 ```
 
-Current releases: [Releases](https://github.com/saymer-alt/mihomo-auto-build/releases). **Source availability:** [version-specific upstream source downloads, build scripts and GPLv3 §6(d) review checklist](SOURCE-AVAILABILITY.md). For a new version, the release description now includes pinned source and build links; older release pages still need an explicit audit.
+Historical releases (last: **mipsel-v1.19.32**): [Releases](https://github.com/saymer-alt/mihomo-auto-build/releases). **Source records:** [version-specific upstream source downloads, historical builder revisions and GPLv3 §6(d) review checklist](SOURCE-AVAILABILITY.md). Each of the nine historical release descriptions contains source entry points and, where applicable, an explicit GPLv2 classification erratum; this does **not** certify complete corresponding-source availability or license compatibility.
 
 ## Is my device supported?
 
 This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOMIPS=softfloat`) — the combination required by MT7621-class MIPSel routers. If your device is AArch64/ARM64 or another architecture, these binaries are **not** for it: use the official [MetaCubeX/mihomo releases](https://github.com/MetaCubeX/mihomo/releases) or the [`saymer-alt/entware-go`](https://github.com/saymer-alt/entware-go) package feed instead. When unsure about your hardware, check the vendor specification for the SoC first.
 
-## Using a built binary
+## Using a built binary (historical reference only)
+
+> **No longer maintained.** These historical binaries should not be
+> deployed as new installations or treated as current security updates.
+> The download/rollback steps below are retained solely to document
+> how the experiment worked.
 
 1. Open [Releases](https://github.com/saymer-alt/mihomo-auto-build/releases) and pick the release matching your target Mihomo version (tags look like `mipsel-v1.19.32`).
 2. Download **both** files: the binary and its `.sha256`.
@@ -64,8 +86,9 @@ This build targets **MIPS little-endian with soft-float** (`GOARCH=mipsle`, `GOM
 ## Scope and limitations
 
 - **MIPSel softfloat only.** Other architectures are covered by official [MetaCubeX/mihomo releases](https://github.com/MetaCubeX/mihomo/releases) or the Entware package feed in [`saymer-alt/entware-go`](https://github.com/saymer-alt/entware-go) (release `latest`).
-- Builds are produced by CI from unmodified upstream source tags; no patches are applied. New releases link to the exact upstream source tag and immutable build-script revision. That pointer alone is **not** an audited complete corresponding-source bundle.
-- Release publication is deliberately conservative: partial or failed uploads are replaced only after validation, never blindly (`--clobber` is not used).
+- Historical binaries were built by CI from unmodified upstream source tags. The original sources and builder revisions are documented, but this alone is **not** a complete corresponding-source or license-compliance attestation.
+- No new MIPSel release is planned. Publish-capable workflows are inert, and their former implementation remains in Git history.
+- Historical publication followed conservative verification rules, with no blind `--clobber`. **These routines are not active**.
 
 ## Development
 
@@ -96,10 +119,9 @@ and per-version manual `plan → publish` runs are recorded in
 [Issue #8](https://github.com/saymer-alt/mihomo-auto-build/issues/8#issuecomment-6102988561).
 
 The [historical backfill workflow](.github/workflows/historical-license-backfill.yml)
-remains **manual-only**, defaults to read-only `mode=plan` and refuses to rebuild/replace
-an existing binary. It should not be run in `publish` mode routinely against already
-complete releases. For future recovery, inspect existing asset IDs/digests, run `plan` first,
-and use `publish` only for explicitly approved, verified missing notice assets.
+was used in October 2026. **Its job is now disabled** alongside the new-release
+and source-errata publication workflows. No further asset changes are planned;
+the old implementation is retained only for historical reference.
 
 **Limitations:** GitHub Actions PASS and the five assets do **not** prove Complete Corresponding
 Source availability or resolve GPL/LGPL/MPL compliance and code-linkage questions.
