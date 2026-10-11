@@ -15,10 +15,10 @@ import (
 )
 
 type Result struct {
-  Input string \`json:"input"\`
-  Functions []string \`json:"go_lzo_functions"\`
-  Count int \`json:"function_count"\`
-  Evidence string \`json:"evidence_scope"\`
+  Input string `json:"input"`
+  Functions []string `json:"go_lzo_functions"`
+  Count int `json:"function_count"`
+  Evidence string `json:"evidence_scope"`
 }
 
 func inspect(path string) (Result,error) {
