@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+name: Experimental MIT OpenVPN LZO1X alternative (never publishes)
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/mit-lzo-openvpn/**'
+      - '.github/workflows/experiment-mit-openvpn-lzo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-mit-lzo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Resolve exact approved MIT modules in throwaway test workspace
+        run: |
+          set -euo pipefail
+          cd experiments/mit-lzo-openvpn
+          go mod init example.invalid/mipsel-mit-lzo-experiment
+          go get github.com/anchore/go-lzo@v0.1.0 github.com/woozymasta/lzo@6f1f2a2b68903f223931942fdb40391f377c1573
+          go mod verify
+          go list -m all
+          if go list -m all | grep -q 'github.com/rasky/go-lzo'; then
+            echo 'GPLv2-only original is not permitted in this MIT experiment'
+            exit 2
+          fi
+      - name: Test OpenVPN framing, compressed LZO1X and decompression cap
+        run: |
+          cd experiments/mit-lzo-openvpn
+          go test -count=1 -v .
+      - name: Check cross-compilation for MT7621 MIPSel softfloat
+        run: |
+          cd experiments/mit-lzo-openvpn
+          CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat \
+            go test -c -o /tmp/mipsel-mit-lzo-experiment.test .
+          file /tmp/mipsel-mit-lzo-experiment.test
+      - name: Explain scope
+        run: |
+          echo 'MIT decoder feasibility tests passed on amd64; MIPSel cross-compilation verified.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This is NOT integration into upstream Mihomo or a legally certified replacement; published Release binaries are unchanged.' >> "$GITHUB_STEP_SUMMARY"
