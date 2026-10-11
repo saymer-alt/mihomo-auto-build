@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT
+name: MIPSel source links and GPLv2 license errata
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/update_release_source_notes.py'
+      - 'tests/test_release_source_notes.py'
+      - '.github/workflows/mipsel-source-errata.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mipsel-source-errata.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'plan (read-only) or publish (append Release descriptions only)'
+        type: choice
+        required: true
+        default: plan
+        options: [plan, publish]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mihomo-mipsel-release
+  cancel-in-progress: false
+
+jobs:
+  release-descriptions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline unit tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Verify all nine releases (read-only preflight)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/update_release_source_notes.py --mode plan
+      - name: Publish only appended source pointers and confirmed GPLv2 errata
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/update_release_source_notes.py --mode publish
