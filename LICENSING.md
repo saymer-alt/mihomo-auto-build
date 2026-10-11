@@ -62,8 +62,14 @@ Evidence: [Issue #8 verified backfill report](https://github.com/saymer-alt/miho
   scoped immutable legacy verifier were fixed in
   [PR #21](https://github.com/saymer-alt/mihomo-auto-build/pull/21).
   A [cross-compiled package graph check](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38131113277)
-  confirms go-lzo imports for v1.19.32. Exact linked-symbol inclusion and
-  license compatibility remain open.
+  confirms go-lzo imports for v1.19.32; a
+  [direct audit of the SHA-256-verified original ELF](https://github.com/saymer-alt/mihomo-auto-build/actions/runs/38132608435)
+  confirms **five go-lzo function names in Go runtime metadata**.
+  The original author also [declined dual licensing](https://github.com/rasky/go-lzo/issues/6#issuecomment-581445627).
+  GPLv2/GPLv3 legal compatibility is **not resolved**; new affected
+  builds remain blocked. Full historical builder source mapping and compiler
+  versions are documented in
+  [BUILD PROVENANCE](docs/HISTORICAL-BUILD-PROVENANCE-2026-10-11.md).
 - Presence of notices is not proof of license compatibility, actual module
   linkage or Complete Corresponding Source availability.
 
