@@ -1,5 +1,13 @@
 # mihomo-auto-build
 
+> [!IMPORTANT]
+> **ARCHIVED / RETIRED — NO LONGER MAINTAINED (since 2026-10-11).**
+> This project is archived. Development is finished; no maintenance, builds,
+> or new releases are planned. Do not deploy the historical binaries on new
+> installations — use the actively maintained packaging in
+> [`saymer-alt/entware-go`](https://github.com/saymer-alt/entware-go) instead.
+> The repository is preserved read-only for history.
+
 > **Historical experiment — retired on 2026-10-11.**
 > This was a spring 2026 proof-of-concept for building Mihomo for MIPSel
 > (softfloat). The owner does not use or maintain the binaries.
